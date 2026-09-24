@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react';
-import { Plus, Receipt, SearchX } from 'lucide-react';
-import { Card, Pagination } from '../components/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { ArrowDownLeft, ArrowUpRight, Plus, Receipt, SearchX } from 'lucide-react';
+import { Card, Pagination, StatTile } from '../components/ui';
 import { Button } from '../components/ui/Button';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { TransactionListSkeleton } from '../components/ui/Skeleton';
 import { EmptyState, ErrorState } from '../components/ui/States';
+import { AnimatedCurrency, Reveal } from '../components/ui/Motion';
+import { PageHeader } from '../components/layout/PageHeader';
 import { TransactionFiltersBar } from '../components/transactions/TransactionFiltersBar';
 import { TransactionList } from '../components/transactions/TransactionList';
 import { useDeleteTransaction, useTransactions } from '../hooks/useFinanceData';
@@ -22,16 +24,18 @@ const DEFAULT_FILTERS: TransactionFilters = {
   datePreset: 'all',
   sort: 'newest',
   page: 1,
-  pageSize: 10,
+  pageSize: 12,
 };
 
 /**
  * Transaction history (brief §12, §14, §20).
  *
- * Filters live in component state and are passed straight to the API, so the
- * server does the filtering, sorting and paging. The client never slices a full
- * dataset it downloaded — that would break as soon as a user has more rows than
- * one page.
+ * Filters live in component state and go straight to the API, so the server does
+ * the filtering, sorting and paging. The client never slices a dataset it
+ * downloaded — that breaks the moment a user has more rows than one page.
+ *
+ * The tiles above the list summarise *the current page* and say so, because a
+ * total that silently ignored the active filter would be misleading.
  */
 export const TransactionsPage = () => {
   const { user } = useAuth();
@@ -51,6 +55,18 @@ export const TransactionsPage = () => {
   const resetFilters = useCallback(() => setFilters(DEFAULT_FILTERS), []);
 
   const currency = user?.currency ?? 'IDR';
+
+  const pageTotals = useMemo(() => {
+    const rows = data?.data ?? [];
+    return rows.reduce(
+      (totals, row) => {
+        if (row.type === 'INCOME') totals.income += row.amount;
+        else totals.expense += row.amount;
+        return totals;
+      },
+      { income: 0, expense: 0 },
+    );
+  }, [data]);
 
   const confirmDelete = async () => {
     if (!pendingDelete) return;
@@ -74,11 +90,9 @@ export const TransactionsPage = () => {
     filters.datePreset !== 'all';
 
   const renderBody = () => {
-    if (isLoading) return <TransactionListSkeleton />;
+    if (isLoading) return <TransactionListSkeleton rows={8} />;
 
-    if (isError || !data) {
-      return <ErrorState error={error} onRetry={() => void refetch()} />;
-    }
+    if (isError || !data) return <ErrorState error={error} onRetry={() => void refetch()} />;
 
     if (data.data.length === 0) {
       return hasFiltersApplied ? (
@@ -100,12 +114,18 @@ export const TransactionsPage = () => {
 
     return (
       <>
-        <div aria-busy={isFetching || undefined}>
+        {/* Dim while a new page or filter loads, rather than unmounting the list —
+            a flash of empty space is more disorienting than a brief fade. */}
+        <div
+          aria-busy={isFetching || undefined}
+          className={isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}
+        >
           <TransactionList
             transactions={data.data}
             currency={currency}
             onEdit={openEdit}
             onDelete={setPendingDelete}
+            groupByDate={filters.sort === 'newest' || filters.sort === 'oldest'}
           />
         </div>
         <Pagination
@@ -123,31 +143,56 @@ export const TransactionsPage = () => {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Transactions</h1>
-          <p className="text-sm text-slate-500">
-            Search, filter and manage everything you have recorded.
-          </p>
-        </div>
-        <Button
-          onClick={openCreate}
-          leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
-          className="hidden lg:inline-flex"
-        >
-          Add transaction
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow="History"
+        title="Transactions"
+        description="Search, filter and manage everything you have recorded."
+        action={
+          <Button onClick={openCreate} leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            Add transaction
+          </Button>
+        }
+      />
 
-      <Card bodyClassName="">
-        <TransactionFiltersBar
-          filters={filters}
-          onChange={updateFilters}
-          onReset={resetFilters}
-          resultCount={data?.pagination.totalItems ?? 0}
-        />
-        {renderBody()}
-      </Card>
+      {data && data.data.length > 0 && (
+        <Reveal>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatTile
+              label="On this page"
+              value={`${data.data.length} of ${data.pagination.totalItems}`}
+              caption={
+                hasFiltersApplied ? 'Matching your filters' : 'Across your whole history'
+              }
+            />
+            <StatTile
+              label="Income shown"
+              tone="income"
+              icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}
+              value={<AnimatedCurrency value={pageTotals.income} currency={currency} />}
+              caption="Sum of the rows below"
+            />
+            <StatTile
+              label="Expense shown"
+              tone="expense"
+              icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}
+              value={<AnimatedCurrency value={pageTotals.expense} currency={currency} />}
+              caption="Sum of the rows below"
+            />
+          </div>
+        </Reveal>
+      )}
+
+      <Reveal delayStep={1}>
+        <Card padding="flush">
+          <TransactionFiltersBar
+            filters={filters}
+            onChange={updateFilters}
+            onReset={resetFilters}
+            resultCount={data?.pagination.totalItems ?? 0}
+          />
+          {renderBody()}
+        </Card>
+      </Reveal>
 
       <ConfirmDialog
         isOpen={pendingDelete !== null}

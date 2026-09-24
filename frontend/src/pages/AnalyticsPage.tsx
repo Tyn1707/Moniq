@@ -3,15 +3,18 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   CalendarRange,
+  Flame,
   Lightbulb,
   TrendingDown,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
 import clsx from 'clsx';
-import { Card } from '../components/ui';
+import { Card, SegmentedControl, StatTile, type SegmentOption } from '../components/ui';
 import { AnalyticsSkeleton } from '../components/ui/Skeleton';
 import { EmptyState, ErrorState } from '../components/ui/States';
+import { AnimatedCurrency, AnimatedPercentage, Reveal } from '../components/ui/Motion';
+import { PageHeader } from '../components/layout/PageHeader';
 import { DailyTrendChart, ExpenseCategoryChart } from '../components/charts/Charts';
 import { InsightList } from '../components/dashboard/InsightList';
 import { useAnalytics } from '../hooks/useFinanceData';
@@ -21,86 +24,47 @@ import type { AnalyticsPeriod } from '../types';
 /**
  * Analytics (brief §18, §19).
  *
- * The period selector is the only real control; everything else is a projection
- * of the server's response for that period. Comparisons against the previous
- * equivalent period are also computed server-side, so "up 20%" always means the
- * same thing here as it does in an insight.
+ * The period selector is the only real control; everything else is a projection of
+ * the server's response for that period. Comparisons against the previous
+ * equivalent period are computed server-side too, so "up 20%" means the same thing
+ * here as it does inside an insight.
  */
 
-const PERIOD_OPTIONS: { value: AnalyticsPeriod; label: string }[] = [
-  { value: 'this_week', label: 'This week' },
-  { value: 'this_month', label: 'This month' },
+const PERIOD_OPTIONS: SegmentOption<AnalyticsPeriod>[] = [
+  { value: 'this_week', label: 'Week' },
+  { value: 'this_month', label: 'Month' },
   { value: 'last_month', label: 'Last month' },
-  { value: 'last_3_months', label: 'Last 3 months' },
-  { value: 'custom', label: 'Custom range' },
+  { value: 'last_3_months', label: '3 months' },
+  { value: 'custom', label: 'Custom' },
 ];
 
-const StatCard = ({
-  label,
-  value,
-  caption,
-  icon,
-  accent = 'neutral',
-}: {
-  label: string;
-  value: string;
-  caption?: string;
-  icon: React.ReactNode;
-  accent?: 'neutral' | 'income' | 'expense';
-}) => (
-  <div className="card p-5">
-    <div className="flex items-start justify-between gap-3">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <span
-        className={clsx(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-          accent === 'income'
-            ? 'bg-income-light text-income-dark'
-            : accent === 'expense'
-              ? 'bg-expense-light text-expense-dark'
-              : 'bg-slate-100 text-slate-600',
-        )}
-      >
-        {icon}
-      </span>
-    </div>
-    <p
-      className={clsx(
-        'mt-3 break-words text-xl font-semibold tabular sm:text-2xl',
-        accent === 'income'
-          ? 'text-income-dark'
-          : accent === 'expense'
-            ? 'text-expense-dark'
-            : 'text-slate-900',
-      )}
-    >
-      {value}
-    </p>
-    {caption && <p className="mt-1.5 text-xs text-slate-500">{caption}</p>}
-  </div>
-);
-
+/**
+ * Trend label. `invert` flips the good/bad colouring for expenses, where an
+ * increase is the bad direction — the same arrow must not mean "good" in both.
+ */
 const ChangeLabel = ({ change, invert = false }: { change: number | null; invert?: boolean }) => {
-  if (change === null) return <>No comparable data for the previous period</>;
-  if (change === 0) return <>Unchanged from the previous period</>;
+  if (change === null) return <span className="text-ink-400">No comparable previous period</span>;
+  if (change === 0) return <span className="text-ink-500">Unchanged from last period</span>;
 
   const isUp = change > 0;
-  // For expenses, "up" is bad — so the good/bad colour flips.
   const isGood = invert ? !isUp : isUp;
   const Icon = isUp ? TrendingUp : TrendingDown;
 
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1',
-        isGood ? 'text-income-dark' : 'text-expense-dark',
+        'inline-flex items-center gap-1 font-semibold',
+        isGood ? 'text-income-600' : 'text-expense-600',
       )}
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-      {formatPercentage(Math.abs(change))} vs previous period
+      {formatPercentage(Math.abs(change))} vs last period
     </span>
   );
 };
+
+const dateInputClasses =
+  'h-10 rounded-xl border border-ink-200 bg-white px-3 text-[0.8125rem] font-medium text-ink-700 shadow-subtle transition focus:border-accent-500 focus:ring-4 focus:ring-accent-100';
 
 export const AnalyticsPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');
@@ -117,194 +81,212 @@ export const AnalyticsPage = () => {
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Analytics</h1>
-        <p className="text-sm text-slate-500">
-          Understand your spending patterns over a period you choose.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Analysis"
+        title="Insights"
+        description="Understand your spending patterns over a period you choose."
+      />
 
-      <Card>
-        <div className="space-y-3">
-          <div
-            className="flex flex-wrap gap-2"
-            role="group"
-            aria-label="Select analytics period"
-          >
-            {PERIOD_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => setPeriod(option.value)}
-                aria-pressed={period === option.value}
-                className={clsx(
-                  'rounded-lg border px-3 py-1.5 text-sm font-medium transition',
-                  period === option.value
-                    ? 'border-primary-600 bg-primary-50 text-primary-700'
-                    : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+      <Reveal>
+        <Card padding="tight">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SegmentedControl
+              label="Select analytics period"
+              options={PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+            />
+
+            {data && (
+              <p className="flex items-center gap-1.5 px-1 text-[0.75rem] font-medium text-ink-500">
+                <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" />
+                {formatShortDate(data.period.from)} – {formatShortDate(data.period.to)}
+                <span className="text-ink-400">
+                  · {data.period.days} {data.period.days === 1 ? 'day' : 'days'}
+                </span>
+              </p>
+            )}
           </div>
 
           {period === 'custom' && (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:max-w-md">
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
+            <div className="mt-3 grid animate-reveal-up grid-cols-2 gap-3 sm:max-w-md">
+              <label className="flex flex-col gap-1 label-eyebrow">
                 From
                 <input
                   type="date"
                   value={customFrom}
                   max={customTo}
                   onChange={(event) => setCustomFrom(event.target.value)}
-                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  className={dateInputClasses}
                 />
               </label>
-              <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
+              <label className="flex flex-col gap-1 label-eyebrow">
                 To
                 <input
                   type="date"
                   value={customTo}
                   min={customFrom}
                   onChange={(event) => setCustomTo(event.target.value)}
-                  className="h-10 rounded-lg border border-slate-300 px-3 text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                  className={dateInputClasses}
                 />
               </label>
             </div>
           )}
-
-          {data && (
-            <p className="flex items-center gap-1.5 text-sm text-slate-500">
-              <CalendarRange className="h-4 w-4" aria-hidden="true" />
-              {formatShortDate(data.period.from)} – {formatShortDate(data.period.to)} (
-              {data.period.days} {data.period.days === 1 ? 'day' : 'days'})
-            </p>
-          )}
-        </div>
-      </Card>
+        </Card>
+      </Reveal>
 
       {isLoading && <AnalyticsSkeleton />}
 
       {!isLoading && (isError || !data) && (
-        <div className="card">
+        <div className="surface">
           <ErrorState error={error} onRetry={() => void refetch()} />
         </div>
       )}
 
       {!isLoading && data && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              label="Total income"
-              value={formatCurrency(data.totals.income, currency)}
-              icon={<ArrowUpRight className="h-5 w-5" aria-hidden="true" />}
-              accent="income"
-            />
-            <StatCard
-              label="Total expense"
-              value={formatCurrency(data.totals.expense, currency)}
-              icon={<ArrowDownLeft className="h-5 w-5" aria-hidden="true" />}
-              accent="expense"
-            />
-            <StatCard
-              label="Net cash flow"
-              value={formatCurrency(data.totals.netCashFlow, currency)}
-              caption={
-                data.totals.savingsRate === null
-                  ? 'No income recorded in this period'
-                  : `${formatPercentage(data.totals.savingsRate)} savings rate`
-              }
-              icon={<Wallet className="h-5 w-5" aria-hidden="true" />}
-              accent={data.totals.netCashFlow >= 0 ? 'income' : 'expense'}
-            />
-            <StatCard
-              label="Average daily expense"
-              value={formatCurrency(data.averageDailyExpense, currency)}
-              caption={`Across ${data.period.days} ${data.period.days === 1 ? 'day' : 'days'}`}
-              icon={<CalendarRange className="h-5 w-5" aria-hidden="true" />}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="card p-5">
-              <p className="text-sm font-medium text-slate-500">Highest expense category</p>
-              {data.highestExpenseCategory ? (
-                <>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {data.highestExpenseCategory.categoryName}
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-500 tabular">
-                    {formatCurrency(data.highestExpenseCategory.amount, currency)} ·{' '}
-                    {formatPercentage(data.highestExpenseCategory.percentage)} of spending
-                  </p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">No expenses in this period.</p>
-              )}
+          <Reveal delayStep={1}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatTile
+                label="Total income"
+                tone="income"
+                icon={<ArrowUpRight className="h-4 w-4" aria-hidden="true" />}
+                value={<AnimatedCurrency value={data.totals.income} currency={currency} />}
+                caption={<ChangeLabel change={data.comparison.incomeChange} />}
+              />
+              <StatTile
+                label="Total expense"
+                tone="expense"
+                icon={<ArrowDownLeft className="h-4 w-4" aria-hidden="true" />}
+                value={<AnimatedCurrency value={data.totals.expense} currency={currency} />}
+                caption={<ChangeLabel change={data.comparison.expenseChange} invert />}
+              />
+              <StatTile
+                label="Net cash flow"
+                tone={data.totals.netCashFlow >= 0 ? 'accent' : 'expense'}
+                icon={<Wallet className="h-4 w-4" aria-hidden="true" />}
+                value={<AnimatedCurrency value={data.totals.netCashFlow} currency={currency} />}
+                caption={
+                  data.totals.savingsRate === null ? (
+                    'No income recorded in this period'
+                  ) : (
+                    <>
+                      <AnimatedPercentage
+                        value={data.totals.savingsRate}
+                        className="font-semibold text-ink-700"
+                      />{' '}
+                      savings rate
+                    </>
+                  )
+                }
+              />
+              <StatTile
+                label="Avg daily expense"
+                icon={<CalendarRange className="h-4 w-4" aria-hidden="true" />}
+                value={<AnimatedCurrency value={data.averageDailyExpense} currency={currency} />}
+                caption={`Across ${data.period.days} ${data.period.days === 1 ? 'day' : 'days'}`}
+              />
             </div>
+          </Reveal>
 
-            <div className="card p-5">
-              <p className="text-sm font-medium text-slate-500">Highest spending day</p>
-              {data.highestSpendingDay ? (
-                <>
-                  <p className="mt-2 text-lg font-semibold text-slate-900">
-                    {formatShortDate(`${data.highestSpendingDay.date}T00:00:00.000Z`)}
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-500 tabular">
-                    {formatCurrency(data.highestSpendingDay.amount, currency)} spent
-                  </p>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">No expenses in this period.</p>
-              )}
+          <Reveal delayStep={2}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Highlight
+                label="Highest expense category"
+                icon={<Flame className="h-4 w-4" aria-hidden="true" />}
+                heading={data.highestExpenseCategory?.categoryName ?? null}
+                detail={
+                  data.highestExpenseCategory
+                    ? `${formatCurrency(data.highestExpenseCategory.amount, currency)} · ${formatPercentage(
+                        data.highestExpenseCategory.percentage,
+                      )} of spending`
+                    : null
+                }
+              />
+              <Highlight
+                label="Highest spending day"
+                icon={<CalendarRange className="h-4 w-4" aria-hidden="true" />}
+                heading={
+                  data.highestSpendingDay
+                    ? formatShortDate(`${data.highestSpendingDay.date}T00:00:00.000Z`)
+                    : null
+                }
+                detail={
+                  data.highestSpendingDay
+                    ? `${formatCurrency(data.highestSpendingDay.amount, currency)} spent`
+                    : null
+                }
+              />
             </div>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="card p-5">
-              <p className="text-sm font-medium text-slate-500">Income trend</p>
-              <p className="mt-2 text-sm text-slate-600">
-                <ChangeLabel change={data.comparison.incomeChange} />
-              </p>
-              <p className="mt-1 text-xs text-slate-400 tabular">
-                Previous period: {formatCurrency(data.previousTotals.income, currency)}
-              </p>
-            </div>
-            <div className="card p-5">
-              <p className="text-sm font-medium text-slate-500">Spending trend</p>
-              <p className="mt-2 text-sm text-slate-600">
-                <ChangeLabel change={data.comparison.expenseChange} invert />
-              </p>
-              <p className="mt-1 text-xs text-slate-400 tabular">
-                Previous period: {formatCurrency(data.previousTotals.expense, currency)}
-              </p>
-            </div>
-          </div>
-
-          <Card title="Income vs expense" description="Day by day across the period">
-            <DailyTrendChart data={data.dailyTrend} currency={currency} />
-          </Card>
+          <Reveal delayStep={3}>
+            <Card title="Income vs expense" description="Day by day across the period">
+              <DailyTrendChart data={data.dailyTrend} currency={currency} />
+            </Card>
+          </Reveal>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card title="Expense by category" description={data.period.label}>
-              <ExpenseCategoryChart data={data.expenseByCategory} currency={currency} />
-            </Card>
+            <Reveal delayStep={4}>
+              <Card
+                title="Expense by category"
+                description={data.period.label}
+                className="h-full"
+              >
+                <ExpenseCategoryChart data={data.expenseByCategory} currency={currency} />
+              </Card>
+            </Reveal>
 
-            <Card title="Insights" description="Generated from your own transactions">
-              {data.insights.length > 0 ? (
-                <InsightList insights={data.insights} />
-              ) : (
-                <EmptyState
-                  icon={<Lightbulb className="h-6 w-6" aria-hidden="true" />}
-                  title="No insights yet"
-                  message="Record a few transactions and FinanceTrack will start spotting patterns."
-                />
-              )}
-            </Card>
+            <Reveal delayStep={5}>
+              <Card
+                title="Insights"
+                description="Generated from your own transactions"
+                className="h-full"
+              >
+                {data.insights.length > 0 ? (
+                  <InsightList insights={data.insights} />
+                ) : (
+                  <EmptyState
+                    icon={<Lightbulb className="h-6 w-6" aria-hidden="true" />}
+                    title="No insights yet"
+                    message="Record a few transactions and FinanceTrack will start spotting patterns."
+                    compact
+                  />
+                )}
+              </Card>
+            </Reveal>
           </div>
         </>
       )}
     </div>
   );
 };
+
+const Highlight = ({
+  label,
+  icon,
+  heading,
+  detail,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  heading: string | null;
+  detail: string | null;
+}) => (
+  <div className="surface-interactive p-5">
+    <div className="flex items-center gap-2">
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
+        {icon}
+      </span>
+      <p className="label-eyebrow">{label}</p>
+    </div>
+    {heading ? (
+      <>
+        <p className="mt-3 text-lg font-bold tracking-tight text-ink-900">{heading}</p>
+        <p className="money mt-0.5 text-[0.8125rem] text-ink-500">{detail}</p>
+      </>
+    ) : (
+      <p className="mt-3 text-[0.875rem] text-ink-400">No expenses in this period.</p>
+    )}
+  </div>
+);

@@ -3,11 +3,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import clsx from 'clsx';
-import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Input, Select, Textarea } from '../ui/Field';
+import { AmountInput, Input, Select, Textarea } from '../ui/Field';
 import { Modal } from '../ui/Modal';
 import { useCategories, useCreateTransaction, useUpdateTransaction } from '../../hooks/useFinanceData';
+import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { ApiError } from '../../services/api';
 import { PAYMENT_METHOD_LABELS, toDateInputValue } from '../../utils/format';
@@ -16,9 +17,13 @@ import type { PaymentMethod, Transaction, TransactionType } from '../../types';
 /**
  * Add / edit transaction (brief §9, §13).
  *
- * Validation messages mirror the server's wording so a field rejected locally
- * and the same field rejected by the API read identically. The server remains
- * the authority — this is purely a faster first pass.
+ * The amount gets an oversized display field at the top because it is the reason
+ * the form exists. Type is a two-up toggle tinted green/red, so the sign of what
+ * you are recording is obvious before you type a digit.
+ *
+ * Client-side messages mirror the server's wording, so a field rejected locally
+ * and the same field rejected by the API read identically. The server remains the
+ * authority — this is only a faster first pass.
  */
 const schema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
@@ -39,10 +44,14 @@ type FormValues = z.infer<typeof schema>;
 interface TransactionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Present when editing; absent when creating. */
   transaction?: Transaction | null;
   defaultType?: TransactionType;
 }
+
+const TYPE_OPTIONS: { value: TransactionType; label: string; icon: typeof ArrowUpRight }[] = [
+  { value: 'EXPENSE', label: 'Expense', icon: ArrowDownLeft },
+  { value: 'INCOME', label: 'Income', icon: ArrowUpRight },
+];
 
 export const TransactionFormModal = ({
   isOpen,
@@ -51,6 +60,7 @@ export const TransactionFormModal = ({
   defaultType = 'EXPENSE',
 }: TransactionFormModalProps) => {
   const toast = useToast();
+  const { user } = useAuth();
   const isEditing = transaction !== null;
 
   const createMutation = useCreateTransaction();
@@ -81,8 +91,7 @@ export const TransactionFormModal = ({
   const selectedType = watch('type');
   const { data: categories = [], isLoading: categoriesLoading } = useCategories(selectedType);
 
-  // Re-seed the form whenever the dialog opens, so a previous edit never leaks
-  // into the next one.
+  // Re-seed whenever the dialog opens, so a previous edit never leaks into the next.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -111,8 +120,8 @@ export const TransactionFormModal = ({
 
   const currentCategoryId = watch('categoryId');
 
-  // Switching income↔expense invalidates the chosen category, because a
-  // category belongs to exactly one type.
+  // Switching income↔expense invalidates the chosen category, because a category
+  // belongs to exactly one type.
   useEffect(() => {
     if (categoriesLoading || categories.length === 0) return;
     if (categories.some((category) => category.id === currentCategoryId)) return;
@@ -161,15 +170,11 @@ export const TransactionFormModal = ({
     }
   });
 
-  const typeOptions: { value: TransactionType; label: string; icon: typeof ArrowUpCircle }[] = [
-    { value: 'EXPENSE', label: 'Expense', icon: ArrowDownCircle },
-    { value: 'INCOME', label: 'Income', icon: ArrowUpCircle },
-  ];
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      icon={<Receipt className="h-5 w-5" aria-hidden="true" />}
       title={isEditing ? 'Edit transaction' : 'Add transaction'}
       description={
         isEditing
@@ -189,39 +194,39 @@ export const TransactionFormModal = ({
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <fieldset>
-          <legend className="mb-1.5 text-sm font-medium text-slate-700">Transaction type</legend>
+          <legend className="mb-1.5 text-[0.8125rem] font-semibold text-ink-700">
+            Transaction type
+          </legend>
           <div className="grid grid-cols-2 gap-2">
-            {typeOptions.map((option) => (
-              <label
-                key={option.value}
-                className={clsx(
-                  'flex cursor-pointer items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition',
-                  selectedType === option.value
-                    ? option.value === 'INCOME'
-                      ? 'border-income bg-income-light text-income-dark'
-                      : 'border-expense bg-expense-light text-expense-dark'
-                    : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50',
-                )}
-              >
-                <input
-                  type="radio"
-                  value={option.value}
-                  className="sr-only"
-                  {...register('type')}
-                />
-                <option.icon className="h-4 w-4" aria-hidden="true" />
-                {option.label}
-              </label>
-            ))}
+            {TYPE_OPTIONS.map((option) => {
+              const isActive = selectedType === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={clsx(
+                    'press flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 px-3 py-3 text-[0.875rem] font-bold transition-all duration-200',
+                    isActive
+                      ? option.value === 'INCOME'
+                        ? 'border-income-500 bg-income-50 text-income-700'
+                        : 'border-expense-500 bg-expense-50 text-expense-700'
+                      : 'border-ink-200 bg-white text-ink-500 hover:border-ink-300 hover:bg-ink-50',
+                  )}
+                >
+                  <input type="radio" value={option.value} className="sr-only" {...register('type')} />
+                  <option.icon className="h-4 w-4" aria-hidden="true" />
+                  {option.label}
+                </label>
+              );
+            })}
           </div>
         </fieldset>
 
-        <Input
+        <AmountInput
           label="Amount"
+          currencyLabel={user?.currency ?? 'IDR'}
           type="number"
           step="0.01"
           min="0"
-          inputMode="decimal"
           placeholder="0"
           required
           error={errors.amount?.message}
@@ -235,9 +240,7 @@ export const TransactionFormModal = ({
           disabled={categoriesLoading}
           {...register('categoryId')}
         >
-          <option value="">
-            {categoriesLoading ? 'Loading categories…' : 'Select a category'}
-          </option>
+          <option value="">{categoriesLoading ? 'Loading categories…' : 'Select a category'}</option>
           {categories.map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}

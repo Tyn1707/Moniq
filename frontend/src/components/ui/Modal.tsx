@@ -4,11 +4,14 @@ import { X } from 'lucide-react';
 import clsx from 'clsx';
 
 /**
- * Accessible modal dialog.
+ * Accessible dialog.
  *
- * Handles the three things a hand-rolled modal usually gets wrong: it traps Tab
- * inside the dialog, closes on Escape, and restores focus to whatever opened it.
- * Body scroll is locked so the page behind cannot move under the overlay.
+ * Behaviour is unchanged from the original implementation and is the part worth
+ * protecting: Tab is trapped inside the panel, Escape closes, body scroll is
+ * locked, and focus returns to whatever opened it. The redesign only changes how
+ * it looks and how it enters — a centred card on desktop, a bottom sheet with a
+ * grab handle on mobile, which is what a phone user expects to be able to
+ * dismiss downward.
  */
 
 interface ModalProps {
@@ -19,12 +22,14 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  /** Optional accent icon shown beside the title. */
+  icon?: ReactNode;
 }
 
 const SIZES = {
-  sm: 'max-w-sm',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
 };
 
 const FOCUSABLE_SELECTOR =
@@ -38,6 +43,7 @@ export const Modal = ({
   children,
   footer,
   size = 'md',
+  icon,
 }: ModalProps) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -96,9 +102,9 @@ export const Modal = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -110,35 +116,48 @@ export const Modal = ({
         aria-describedby={description ? 'modal-description' : undefined}
         tabIndex={-1}
         className={clsx(
-          'relative flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-xl animate-fade-in sm:rounded-2xl',
+          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-float',
+          'animate-sheet-up sm:animate-reveal-scale sm:rounded-3xl',
           SIZES[size],
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-          <div className="space-y-1">
-            <h2 id="modal-title" className="text-lg font-semibold text-slate-900">
-              {title}
-            </h2>
-            {description && (
-              <p id="modal-description" className="text-sm text-slate-500">
-                {description}
-              </p>
+        {/* Grab handle: signals the sheet is dismissible on touch. */}
+        <div className="flex justify-center pt-2.5 sm:hidden" aria-hidden="true">
+          <span className="h-1 w-10 rounded-full bg-ink-300" />
+        </div>
+
+        <header className="flex items-start justify-between gap-4 px-5 pb-4 pt-4 sm:px-6 sm:pt-5">
+          <div className="flex min-w-0 items-start gap-3">
+            {icon && (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-50 text-accent-600">
+                {icon}
+              </span>
             )}
+            <div className="min-w-0 space-y-0.5">
+              <h2 id="modal-title" className="text-lg font-bold tracking-tight text-ink-900">
+                {title}
+              </h2>
+              {description && (
+                <p id="modal-description" className="text-[0.8125rem] text-ink-500">
+                  {description}
+                </p>
+              )}
+            </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="press shrink-0 rounded-xl p-2 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700"
             aria-label="Close dialog"
           >
-            <X className="h-5 w-5" aria-hidden="true" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
-        </div>
+        </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 pb-5 sm:px-6">{children}</div>
 
         {footer && (
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 border-t border-ink-100 bg-ink-50/60 px-5 py-4 pb-safe sm:flex-row sm:justify-end sm:px-6">
             {footer}
           </div>
         )}

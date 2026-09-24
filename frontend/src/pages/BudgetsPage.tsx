@@ -1,24 +1,28 @@
 import { useState } from 'react';
-import { PiggyBank, Plus } from 'lucide-react';
-import { Card, ProgressBar } from '../components/ui';
+import { PiggyBank, Plus, Target } from 'lucide-react';
+import clsx from 'clsx';
+import { Badge, Card, ProgressBar, StatTile } from '../components/ui';
 import { Button } from '../components/ui/Button';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { BudgetListSkeleton } from '../components/ui/Skeleton';
 import { EmptyState, ErrorState } from '../components/ui/States';
+import { AnimatedCurrency, AnimatedPercentage, Reveal, staggerClass } from '../components/ui/Motion';
+import { PageHeader } from '../components/layout/PageHeader';
 import { BudgetCard, BudgetFormModal } from '../components/budgets/BudgetComponents';
 import { useBudgets, useDeleteBudget } from '../hooks/useFinanceData';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { ApiError } from '../services/api';
-import { formatCurrency, formatMonth, formatPercentage } from '../utils/format';
+import { formatCurrency, formatMonth } from '../utils/format';
 import type { Budget, BudgetStatus } from '../types';
 
 /**
  * Budgets (brief §15–§17).
  *
  * Spent, remaining, usage and status all arrive from the API. The page adds a
- * roll-up header so a user can answer "am I still on budget overall?" without
- * summing the individual cards themselves.
+ * roll-up so a user can answer "am I on budget overall?" without mentally summing
+ * the cards, and sorts the worst offenders to the top — an exceeded budget is the
+ * only thing on this page that needs acting on.
  */
 export const BudgetsPage = () => {
   const { user } = useAuth();
@@ -51,107 +55,127 @@ export const BudgetsPage = () => {
 
   const openCreate = () => setFormState({ open: true, budget: null });
 
+  const STATUS_ORDER: Record<BudgetStatus, number> = { EXCEEDED: 0, WARNING: 1, SAFE: 2 };
+  const budgets = [...(data?.items ?? [])].sort(
+    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.usagePercentage - a.usagePercentage,
+  );
+
   /** Overall status mirrors the worst individual budget. */
-  const overallStatus = ((): BudgetStatus => {
-    if (!data) return 'SAFE';
-    if (data.items.some((budget) => budget.status === 'EXCEEDED')) return 'EXCEEDED';
-    if (data.items.some((budget) => budget.status === 'WARNING')) return 'WARNING';
-    return 'SAFE';
-  })();
+  const overallStatus: BudgetStatus = budgets.some((budget) => budget.status === 'EXCEEDED')
+    ? 'EXCEEDED'
+    : budgets.some((budget) => budget.status === 'WARNING')
+      ? 'WARNING'
+      : 'SAFE';
+
+  const exceededCount = budgets.filter((budget) => budget.status === 'EXCEEDED').length;
+  const warningCount = budgets.filter((budget) => budget.status === 'WARNING').length;
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Budgets</h1>
-          <p className="text-sm text-slate-500">
-            {data ? formatMonth(data.period.month) : 'Set a monthly limit per expense category.'}
-          </p>
-        </div>
-        <Button
-          onClick={openCreate}
-          leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}
-        >
-          Create budget
-        </Button>
-      </header>
+      <PageHeader
+        eyebrow={data ? formatMonth(data.period.month) : 'This month'}
+        title="Budgets"
+        description="Set a monthly limit per expense category and track how much is left."
+        action={
+          <Button onClick={openCreate} leftIcon={<Plus className="h-4 w-4" aria-hidden="true" />}>
+            Create budget
+          </Button>
+        }
+      />
 
       {isLoading && <BudgetListSkeleton />}
 
       {!isLoading && (isError || !data) && (
-        <div className="card">
+        <div className="surface">
           <ErrorState error={error} onRetry={() => void refetch()} />
         </div>
       )}
 
-      {!isLoading && data && data.items.length === 0 && (
-        <div className="card">
-          <EmptyState
-            icon={<PiggyBank className="h-6 w-6" aria-hidden="true" />}
-            title="No budgets created yet."
-            message="Set a monthly limit for the categories you want to keep an eye on, and FinanceTrack will track your progress against them."
-            action={{ label: 'Create Budget', onClick: openCreate }}
-          />
-        </div>
+      {!isLoading && data && budgets.length === 0 && (
+        <Reveal>
+          <div className="surface">
+            <EmptyState
+              icon={<PiggyBank className="h-6 w-6" aria-hidden="true" />}
+              title="No budgets created yet."
+              message="Set a monthly limit for the categories you want to keep an eye on, and FinanceTrack will track your progress against them."
+              action={{ label: 'Create Budget', onClick: openCreate }}
+            />
+          </div>
+        </Reveal>
       )}
 
-      {!isLoading && data && data.items.length > 0 && (
+      {!isLoading && data && budgets.length > 0 && (
         <>
-          <Card title="This month at a glance">
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Budgeted
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900 tabular">
-                    {formatCurrency(data.totals.budgeted, currency)}
-                  </p>
+          <Reveal>
+            <Card
+              title="This month at a glance"
+              description={formatMonth(data.period.month)}
+              action={
+                exceededCount > 0 ? (
+                  <Badge tone="expense" dot>
+                    {exceededCount} exceeded
+                  </Badge>
+                ) : warningCount > 0 ? (
+                  <Badge tone="warn" dot>
+                    {warningCount} near limit
+                  </Badge>
+                ) : (
+                  <Badge tone="income" dot>
+                    All on track
+                  </Badge>
+                )
+              }
+            >
+              <div className="space-y-5">
+                <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+                  <Figure label="Budgeted" value={<AnimatedCurrency value={data.totals.budgeted} currency={currency} />} />
+                  <Figure
+                    label="Spent"
+                    tone="expense"
+                    value={<AnimatedCurrency value={data.totals.spent} currency={currency} />}
+                  />
+                  <Figure
+                    label="Remaining"
+                    tone={data.totals.remaining < 0 ? 'expense' : 'income'}
+                    value={<AnimatedCurrency value={data.totals.remaining} currency={currency} />}
+                  />
+                  <Figure
+                    label="Used"
+                    value={<AnimatedPercentage value={data.totals.usagePercentage} />}
+                  />
                 </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Spent</p>
-                  <p className="mt-1 text-lg font-semibold text-expense-dark tabular">
-                    {formatCurrency(data.totals.spent, currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                    Remaining
-                  </p>
-                  <p
-                    className={`mt-1 text-lg font-semibold tabular ${
-                      data.totals.remaining < 0 ? 'text-expense-dark' : 'text-income-dark'
-                    }`}
-                  >
-                    {formatCurrency(data.totals.remaining, currency)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Used</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900 tabular">
-                    {formatPercentage(data.totals.usagePercentage)}
-                  </p>
-                </div>
+                <ProgressBar
+                  value={data.totals.usagePercentage}
+                  status={overallStatus}
+                  label="Overall budget usage"
+                />
               </div>
-              <ProgressBar
-                value={data.totals.usagePercentage}
-                status={overallStatus}
-                label="Overall budget usage"
-              />
-            </div>
-          </Card>
+            </Card>
+          </Reveal>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            {data.items.map((budget) => (
-              <BudgetCard
-                key={budget.id}
-                budget={budget}
-                currency={currency}
-                onEdit={(target) => setFormState({ open: true, budget: target })}
-                onDelete={setPendingDelete}
-              />
+            {budgets.map((budget, index) => (
+              <div key={budget.id} className={clsx('animate-reveal-up', staggerClass(index + 1))}>
+                <BudgetCard
+                  budget={budget}
+                  currency={currency}
+                  onEdit={(target) => setFormState({ open: true, budget: target })}
+                  onDelete={setPendingDelete}
+                />
+              </div>
             ))}
           </div>
+
+          {/* Encourage broadening coverage once the basics are in place. */}
+          <Reveal delayStep={2}>
+            <StatTile
+              label="Tip"
+              icon={<Target className="h-4 w-4" aria-hidden="true" />}
+              tone="accent"
+              value={`${budgets.length} ${budgets.length === 1 ? 'category' : 'categories'} budgeted`}
+              caption="Budgets only count expenses inside their own month, so last month's spending never affects this month's progress."
+            />
+          </Reveal>
         </>
       )}
 
@@ -167,7 +191,10 @@ export const BudgetsPage = () => {
         title="Delete this budget?"
         message={
           pendingDelete
-            ? `Are you sure you want to delete the ${pendingDelete.category.name} budget? Your transactions stay untouched.`
+            ? `Are you sure you want to delete the ${pendingDelete.category.name} budget of ${formatCurrency(
+                pendingDelete.amount,
+                currency,
+              )}? Your transactions stay untouched.`
             : ''
         }
         isLoading={deleteMutation.isPending}
@@ -177,3 +204,25 @@ export const BudgetsPage = () => {
     </div>
   );
 };
+
+const Figure = ({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: 'neutral' | 'income' | 'expense';
+}) => (
+  <div>
+    <p className="label-eyebrow">{label}</p>
+    <p
+      className={clsx(
+        'mt-1 text-[1.0625rem] font-bold tracking-tight',
+        tone === 'income' ? 'text-income-600' : tone === 'expense' ? 'text-expense-600' : 'text-ink-900',
+      )}
+    >
+      {value}
+    </p>
+  </div>
+);

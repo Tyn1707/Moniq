@@ -3,10 +3,11 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, Wallet } from 'lucide-react';
+import { Check, Sparkles, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
-import { Input, Select } from '../components/ui/Field';
+import { AmountInput, Select } from '../components/ui/Field';
+import { PageLoader } from '../components/ui/States';
 import { useAuth } from '../hooks/useAuth';
 import { authService } from '../services';
 import { ApiError } from '../services/api';
@@ -17,9 +18,9 @@ import type { Currency } from '../types';
 /**
  * Onboarding (brief §6).
  *
- * Collects the starting balance so the dashboard's Current Balance reflects
- * money the user already had before they started recording transactions. Every
- * field is optional in effect — the whole step can be skipped.
+ * Collects the starting balance so Current Balance reflects money the user already
+ * had before they began recording transactions. Everything is optional in effect —
+ * the whole step can be skipped, and nothing here is required for the app to work.
  */
 
 const SUGGESTED_CATEGORIES = [
@@ -68,14 +69,7 @@ export const OnboardingPage = () => {
 
   const currency = (watch('currency') || 'IDR') as Currency;
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-primary-600" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <PageLoader message="Setting things up…" />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.onboardingCompleted) return <Navigate to="/dashboard" replace />;
 
@@ -119,22 +113,31 @@ export const OnboardingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-xl space-y-6">
-        <header className="space-y-2 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary-600 text-white">
-            <Wallet className="h-6 w-6" aria-hidden="true" />
+    <div className="min-h-screen bg-ink-50">
+      {/* Gradient banner: makes the first screen after sign-up feel like an
+          arrival rather than another form. */}
+      <div className="relative overflow-hidden bg-ink-900 px-4 pb-20 pt-12 text-center text-white sm:px-6">
+        <div className="absolute inset-0 bg-mesh-accent opacity-75" aria-hidden="true" />
+        <div
+          className="absolute inset-0 bg-grid-faint opacity-40 [background-size:32px_32px]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto max-w-xl space-y-3">
+          <span className="glass mx-auto flex h-14 w-14 items-center justify-center rounded-2xl">
+            <TrendingUp className="h-6 w-6" aria-hidden="true" />
           </span>
-          <h1 className="text-2xl font-semibold text-slate-900">
+          <h1 className="text-display-sm text-white">
             Welcome, {user.name.split(' ')[0]}
           </h1>
-          <p className="text-sm text-slate-500">
+          <p className="mx-auto max-w-md text-[0.875rem] leading-relaxed text-white/70">
             A few details so your dashboard is accurate from day one. You can change all of this
-            later.
+            later in your profile.
           </p>
-        </header>
+        </div>
+      </div>
 
-        <form onSubmit={onSubmit} className="card space-y-5 p-5 sm:p-6" noValidate>
+      <div className="mx-auto -mt-12 w-full max-w-xl px-4 pb-16 sm:px-6">
+        <form onSubmit={onSubmit} className="surface animate-reveal-up space-y-5 p-5 sm:p-7" noValidate>
           <Select label="Currency" {...register('currency')}>
             {(Object.entries(CURRENCY_LABELS) as [Currency, string][]).map(([value, label]) => (
               <option key={value} value={value}>
@@ -143,36 +146,36 @@ export const OnboardingPage = () => {
             ))}
           </Select>
 
-          <Input
-            label="Current balance"
+          <AmountInput
+            label="How much money do you have right now?"
+            currencyLabel={currency}
             type="number"
             step="0.01"
             min="0"
-            inputMode="decimal"
             placeholder="0"
-            hint={`How much money do you have right now? Example: 2500000 for ${currency} 2,500,000.`}
+            hint="Your starting balance. Leave it at 0 if you would rather begin from scratch."
             error={errors.initialBalance?.message}
             {...register('initialBalance')}
           />
 
-          <Input
+          <AmountInput
             label="Monthly income estimate"
+            currencyLabel={currency}
             type="number"
             step="0.01"
             min="0"
-            inputMode="decimal"
             placeholder="0"
-            hint="Optional — used as a reference on your profile."
+            hint="Optional — kept as a reference on your profile."
             error={errors.monthlyIncomeTarget?.message}
             {...register('monthlyIncomeTarget')}
           />
 
           <fieldset>
-            <legend className="text-sm font-medium text-slate-700">
-              Expense categories you care about
+            <legend className="text-[0.8125rem] font-semibold text-ink-700">
+              Categories you care about
             </legend>
-            <p className="mt-1 text-sm text-slate-500">
-              These are already available — tap any extras you want highlighted.
+            <p className="mt-1 text-[0.8125rem] text-ink-500">
+              All of these are already available. Tap any you want to make sure exist.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {SUGGESTED_CATEGORIES.map((name) => {
@@ -184,10 +187,10 @@ export const OnboardingPage = () => {
                     onClick={() => toggleCategory(name)}
                     aria-pressed={isSelected}
                     className={clsx(
-                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
+                      'press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-all duration-200',
                       isSelected
-                        ? 'border-primary-600 bg-primary-50 text-primary-700'
-                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50',
+                        ? 'border-accent-500 bg-accent-50 text-accent-700'
+                        : 'border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:bg-ink-50',
                     )}
                   >
                     {isSelected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -198,11 +201,15 @@ export const OnboardingPage = () => {
             </div>
           </fieldset>
 
-          <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 border-t border-ink-100 pt-4 sm:flex-row sm:justify-end">
             <Button variant="ghost" onClick={handleSkip} isLoading={isSkipping}>
               Skip for now
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
+            <Button
+              type="submit"
+              isLoading={isSubmitting}
+              leftIcon={<Sparkles className="h-4 w-4" aria-hidden="true" />}
+            >
               Go to dashboard
             </Button>
           </div>

@@ -1,12 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
-import { Calendar, Mail, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { Calendar, Eye, EyeOff, Mail, ShieldCheck, Wallet } from 'lucide-react';
 import { Card } from '../components/ui';
 import { Button } from '../components/ui/Button';
-import { Input, Select } from '../components/ui/Field';
+import { AmountInput, Input, Select } from '../components/ui/Field';
+import { Reveal } from '../components/ui/Motion';
+import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { authService } from '../services';
@@ -17,9 +19,9 @@ import type { Currency } from '../types';
 /**
  * Profile & settings (brief §21).
  *
- * Two independent forms: account details, and password. Keeping them separate
- * means a failed password change never discards an edited name, and the password
- * fields are never populated or echoed back.
+ * Two independent forms: account details, and password. Keeping them separate means
+ * a failed password change never discards an edited name, and the password fields
+ * are never pre-populated or echoed back.
  */
 
 const profileSchema = z.object({
@@ -48,6 +50,7 @@ type PasswordValues = z.infer<typeof passwordSchema>;
 export const ProfilePage = () => {
   const { user, setUser } = useAuth();
   const toast = useToast();
+  const [showPasswords, setShowPasswords] = useState(false);
 
   const profileForm = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
@@ -105,141 +108,174 @@ export const ProfilePage = () => {
 
   if (!user) return null;
 
+  const initials = user.name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">Profile</h1>
-        <p className="text-sm text-slate-500">Manage your account details and preferences.</p>
-      </header>
+      <PageHeader
+        eyebrow="Settings"
+        title="Profile"
+        description="Manage your account details and preferences."
+      />
 
-      <Card>
-        <dl className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-              <UserIcon className="h-4 w-4" aria-hidden="true" />
+      {/* Identity banner: gives the page an anchor instead of opening on a form. */}
+      <Reveal>
+        <section className="relative overflow-hidden rounded-3xl bg-ink-900 p-6 text-white sm:p-7">
+          <div className="absolute inset-0 bg-mesh-accent opacity-70" aria-hidden="true" />
+          <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+            <span
+              className="glass flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl font-display text-xl font-extrabold"
+              aria-hidden="true"
+            >
+              {initials || '?'}
             </span>
-            <div className="min-w-0">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Name</dt>
-              <dd className="truncate text-sm font-medium text-slate-900">{user.name}</dd>
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-bold tracking-tight text-white">{user.name}</h2>
+              <p className="mt-0.5 flex items-center gap-1.5 truncate text-[0.8125rem] text-white/70">
+                <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {user.email}
+              </p>
             </div>
+            <dl className="grid grid-cols-2 gap-5 sm:gap-8">
+              <div>
+                <dt className="flex items-center gap-1.5 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-white/50">
+                  <Wallet className="h-3 w-3" aria-hidden="true" />
+                  Currency
+                </dt>
+                <dd className="mt-1 font-display text-[0.9375rem] font-bold">{user.currency}</dd>
+              </div>
+              <div>
+                <dt className="flex items-center gap-1.5 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-white/50">
+                  <Calendar className="h-3 w-3" aria-hidden="true" />
+                  Member since
+                </dt>
+                <dd className="mt-1 font-display text-[0.9375rem] font-bold">
+                  {formatDate(user.createdAt)}
+                </dd>
+              </div>
+            </dl>
           </div>
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-              <Mail className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Email</dt>
-              <dd className="truncate text-sm font-medium text-slate-900">{user.email}</dd>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-              <Calendar className="h-4 w-4" aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                Member since
-              </dt>
-              <dd className="truncate text-sm font-medium text-slate-900">
-                {formatDate(user.createdAt)}
-              </dd>
-            </div>
-          </div>
-        </dl>
-      </Card>
+        </section>
+      </Reveal>
 
-      <Card
-        title="Account details"
-        description="Your currency affects how every amount is displayed."
-      >
-        <form
-          onSubmit={profileForm.handleSubmit((values) => updateProfile.mutate(values))}
-          className="space-y-4"
-          noValidate
-        >
-          <Input
-            label="Full name"
-            required
-            error={profileForm.formState.errors.name?.message}
-            {...profileForm.register('name')}
-          />
-
-          <Select
-            label="Currency"
-            error={profileForm.formState.errors.currency?.message}
-            {...profileForm.register('currency')}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Reveal delayStep={1}>
+          <Card
+            title="Account details"
+            description="Your currency affects how every amount is displayed."
+            className="h-full"
           >
-            {(Object.entries(CURRENCY_LABELS) as [Currency, string][]).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </Select>
+            <form
+              onSubmit={profileForm.handleSubmit((values) => updateProfile.mutate(values))}
+              className="space-y-4"
+              noValidate
+            >
+              <Input
+                label="Full name"
+                required
+                error={profileForm.formState.errors.name?.message}
+                {...profileForm.register('name')}
+              />
 
-          <Input
-            label="Starting balance"
-            type="number"
-            step="0.01"
-            min="0"
-            inputMode="decimal"
-            hint={`The money you had before recording transactions. Currently ${formatCurrency(
-              user.initialBalance,
-              user.currency,
-            )}.`}
-            error={profileForm.formState.errors.initialBalance?.message}
-            {...profileForm.register('initialBalance')}
-          />
+              <Select
+                label="Currency"
+                error={profileForm.formState.errors.currency?.message}
+                {...profileForm.register('currency')}
+              >
+                {(Object.entries(CURRENCY_LABELS) as [Currency, string][]).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
 
-          <div className="flex justify-end">
-            <Button type="submit" isLoading={updateProfile.isPending}>
-              Save changes
-            </Button>
-          </div>
-        </form>
-      </Card>
+              <AmountInput
+                label="Starting balance"
+                currencyLabel={user.currency}
+                type="number"
+                step="0.01"
+                min="0"
+                hint={`Money you had before recording transactions. Currently ${formatCurrency(
+                  user.initialBalance,
+                  user.currency,
+                )}.`}
+                error={profileForm.formState.errors.initialBalance?.message}
+                {...profileForm.register('initialBalance')}
+              />
 
-      <Card title="Password" description="Use at least 8 characters.">
-        <form
-          onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))}
-          className="space-y-4"
-          noValidate
-        >
-          <Input
-            label="Current password"
-            type="password"
-            autoComplete="current-password"
-            required
-            error={passwordForm.formState.errors.currentPassword?.message}
-            {...passwordForm.register('currentPassword')}
-          />
-          <Input
-            label="New password"
-            type="password"
-            autoComplete="new-password"
-            required
-            error={passwordForm.formState.errors.newPassword?.message}
-            {...passwordForm.register('newPassword')}
-          />
-          <Input
-            label="Confirm new password"
-            type="password"
-            autoComplete="new-password"
-            required
-            error={passwordForm.formState.errors.confirmPassword?.message}
-            {...passwordForm.register('confirmPassword')}
-          />
+              <div className="flex justify-end pt-1">
+                <Button type="submit" isLoading={updateProfile.isPending}>
+                  Save changes
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </Reveal>
 
-          <div className="flex items-center justify-between gap-3">
-            <p className="flex items-center gap-1.5 text-xs text-slate-500">
-              <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />
-              Passwords are hashed and never stored in plain text.
-            </p>
-            <Button type="submit" isLoading={changePassword.isPending}>
-              Update password
-            </Button>
-          </div>
-        </form>
-      </Card>
+        <Reveal delayStep={2}>
+          <Card title="Password" description="Use at least 8 characters." className="h-full">
+            <form
+              onSubmit={passwordForm.handleSubmit((values) => changePassword.mutate(values))}
+              className="space-y-4"
+              noValidate
+            >
+              <Input
+                label="Current password"
+                type={showPasswords ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                error={passwordForm.formState.errors.currentPassword?.message}
+                trailing={
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords((visible) => !visible)}
+                    className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-ink-500 transition hover:text-ink-800"
+                  >
+                    {showPasswords ? (
+                      <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {showPasswords ? 'Hide' : 'Show'}
+                  </button>
+                }
+                {...passwordForm.register('currentPassword')}
+              />
+              <Input
+                label="New password"
+                type={showPasswords ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                error={passwordForm.formState.errors.newPassword?.message}
+                {...passwordForm.register('newPassword')}
+              />
+              <Input
+                label="Confirm new password"
+                type={showPasswords ? 'text' : 'password'}
+                autoComplete="new-password"
+                required
+                error={passwordForm.formState.errors.confirmPassword?.message}
+                {...passwordForm.register('confirmPassword')}
+              />
+
+              <div className="flex flex-col gap-3 border-t border-ink-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-start gap-1.5 text-[0.75rem] leading-relaxed text-ink-500">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-income-600" aria-hidden="true" />
+                  Passwords are hashed with bcrypt and never stored in plain text.
+                </p>
+                <Button type="submit" isLoading={changePassword.isPending}>
+                  Update password
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </Reveal>
+      </div>
     </div>
   );
 };
