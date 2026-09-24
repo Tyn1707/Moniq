@@ -1,0 +1,120 @@
+// FinanceTrack — Prisma schema
+//
+// PROVIDER PORTABILITY
+// --------------------
+// This schema is intentionally written to work on both SQLite (local dev, zero
+// install) and PostgreSQL (the stack recommended in the project brief).
+// To move to PostgreSQL:
+//   1. change `provider = "sqlite"` below to `provider = "postgresql"`
+//   2. point DATABASE_URL at your Postgres instance
+//   3. run `npm run prisma:migrate`
+// No model changes are required, because we avoid SQLite-incompatible features
+// (native enums, `@db.*` native type attributes).
+//
+// Enum-like columns (`type`, `paymentMethod`) are stored as String and are
+// constrained at the application boundary by Zod validators in
+// src/validators/*, using the constants in src/utils/constants.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String @id @default(cuid())
+  name         String
+  email        String @unique
+  passwordHash String
+
+  // Onboarding / preferences
+  currency             String  @default("IDR")
+  initialBalance       Decimal @default(0)
+  monthlyIncomeTarget  Decimal @default(0)
+  onboardingCompleted  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@map("users")
+}
+
+model Category {
+  id     String @id @default(cuid())
+  userId String
+
+  name String
+  // "INCOME" | "EXPENSE"
+  type String
+  // true for the default category set created at registration
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  budgets      Budget[]
+
+  @@unique([userId, name, type])
+  @@index([userId, type])
+  @@map("categories")
+}
+
+model Transaction {
+  id         String @id @default(cuid())
+  userId     String
+  categoryId String
+
+  // "INCOME" | "EXPENSE" — denormalised from Category so that income/expense
+  // aggregation never needs a join, and so historical rows keep their meaning.
+  type            String
+  amount          Decimal
+  description     String
+  transactionDate DateTime
+  paymentMethod   String   @default("CASH")
+  notes           String?
+
+  // Lowercased "description + notes", maintained by the transaction service.
+  // Prisma's case-insensitive `mode: 'insensitive'` filter is not available on
+  // SQLite, and plain `contains` is case-sensitive on PostgreSQL — matching
+  // against a pre-lowercased column gives identical search behaviour on both.
+  searchText String @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@index([userId, transactionDate])
+  @@index([userId, type])
+  @@index([userId, categoryId])
+  @@map("transactions")
+}
+
+model Budget {
+  id         String @id @default(cuid())
+  userId     String
+  categoryId String
+
+  amount      Decimal
+  periodStart DateTime
+  periodEnd   DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId, periodStart])
+  @@index([userId, periodStart])
+  @@map("budgets")
+}
