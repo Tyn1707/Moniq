@@ -1,8 +1,8 @@
 {
-  "name": "financetrack-backend",
+  "name": "moniq-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "FinanceTrack API — personal finance tracking backend",
+  "description": "Moniq API — personal finance tracking backend",
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch src/server.ts",

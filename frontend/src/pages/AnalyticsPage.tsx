@@ -249,7 +249,7 @@ export const AnalyticsPage = () => {
                   <EmptyState
                     icon={<Lightbulb className="h-6 w-6" aria-hidden="true" />}
                     title="No insights yet"
-                    message="Record a few transactions and FinanceTrack will start spotting patterns."
+                    message="Record a few transactions and Moniq will start spotting patterns."
                     compact
                   />
                 )}

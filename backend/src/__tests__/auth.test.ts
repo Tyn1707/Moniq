@@ -22,7 +22,7 @@ describe('POST /api/auth/register', () => {
       onboardingCompleted: false,
     });
     expect(JSON.stringify(response.body)).not.toContain('password');
-    expect(response.headers['set-cookie']?.[0]).toContain('financetrack_token=');
+    expect(response.headers['set-cookie']?.[0]).toContain('moniq_token=');
   });
 
   it('stores the password as a bcrypt hash, never plain text', async () => {
@@ -106,7 +106,7 @@ describe('POST /api/auth/logout', () => {
     const response = await request(app).post('/api/auth/logout').set('Cookie', user.cookie);
 
     expect(response.status).toBe(200);
-    expect(response.headers['set-cookie']?.[0]).toMatch(/financetrack_token=;/);
+    expect(response.headers['set-cookie']?.[0]).toMatch(/moniq_token=;/);
   });
 });
 
@@ -133,7 +133,7 @@ describe('protected routes', () => {
   it('rejects a tampered token', async () => {
     const response = await request(app)
       .get('/api/dashboard')
-      .set('Cookie', 'financetrack_token=not.a.real.token');
+      .set('Cookie', 'moniq_token=not.a.real.token');
 
     expect(response.status).toBe(401);
   });

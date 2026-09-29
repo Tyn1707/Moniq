@@ -2,6 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { PieChart, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { PageLoader } from '../components/ui/States';
+import { APP_NAME, Logo } from '../components/ui/Logo';
 
 /**
  * Layout for the unauthenticated pages.
@@ -47,11 +48,8 @@ export const AuthLayout = () => {
           aria-hidden="true"
         />
 
-        <div className="relative flex items-center gap-2.5">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-            <TrendingUp className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span className="font-display text-lg font-extrabold tracking-tight">FinanceTrack</span>
+        <div className="relative">
+          <Logo className="h-10" onDark />
         </div>
 
         <div className="relative max-w-md space-y-9">
@@ -79,19 +77,14 @@ export const AuthLayout = () => {
         </div>
 
         <p className="relative text-[0.75rem] text-white/50">
-          FinanceTrack records and analyses money. It never moves it.
+          {APP_NAME} records and analyses money. It never moves it.
         </p>
       </aside>
 
       <main className="flex w-full flex-col justify-center px-5 py-10 sm:px-10 lg:w-1/2 xl:w-[44%]">
         <div className="mx-auto w-full max-w-sm animate-reveal-up">
-          <div className="mb-9 flex items-center gap-2.5 lg:hidden">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent-gradient text-white shadow-glow">
-              <TrendingUp className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <span className="font-display text-lg font-extrabold tracking-tight text-ink-900">
-              FinanceTrack
-            </span>
+          <div className="mb-9 lg:hidden">
+            <Logo className="h-12" />
           </div>
           <Outlet />
         </div>

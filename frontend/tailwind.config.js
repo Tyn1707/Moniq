@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 
 /**
- * FinanceTrack design tokens.
+ * Moniq design tokens.
  *
  * The palette stays deliberately narrow (brief §26): one accent for neutral and
  * balance figures, emerald for income, rose for expense, amber for warnings.

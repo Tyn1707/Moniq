@@ -97,7 +97,7 @@ export const BudgetsPage = () => {
             <EmptyState
               icon={<PiggyBank className="h-6 w-6" aria-hidden="true" />}
               title="No budgets created yet."
-              message="Set a monthly limit for the categories you want to keep an eye on, and FinanceTrack will track your progress against them."
+              message="Set a monthly limit for the categories you want to keep an eye on, and Moniq will track your progress against them."
               action={{ label: 'Create Budget', onClick: openCreate }}
             />
           </div>

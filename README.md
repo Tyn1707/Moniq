@@ -1,4 +1,4 @@
-# FinanceTrack
+# Moniq
 
 A personal finance tracker for students and young professionals.
 
@@ -6,7 +6,7 @@ A personal finance tracker for students and young professionals.
 
 Record income and expenses, group them by category, watch your balance, set
 monthly budgets, and get insights derived from your own transactions.
-FinanceTrack only ever *records and analyses* money — it never moves it.
+Moniq only ever *records and analyses* money — it never moves it.
 
 ---
 

@@ -129,7 +129,7 @@ export const ErrorState = ({ error, onRetry, title }: ErrorStateProps) => {
 };
 
 /** Full-page loader used while the session is being established. */
-export const PageLoader = ({ message = 'Loading FinanceTrack…' }: { message?: string }) => (
+export const PageLoader = ({ message = 'Loading Moniq…' }: { message?: string }) => (
   <div className="flex min-h-screen items-center justify-center">
     <div className="flex flex-col items-center gap-4">
       <div className="relative h-12 w-12">

@@ -26,7 +26,7 @@ import {
 
 const prisma = new PrismaClient();
 
-const DEMO_EMAIL = 'demo@financetrack.local';
+const DEMO_EMAIL = 'demo@moniq.local';
 
 /** UTC midnight, `daysAgo` days before today. */
 const daysAgo = (days: number): Date => {

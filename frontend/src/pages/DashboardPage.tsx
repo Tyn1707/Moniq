@@ -147,7 +147,7 @@ export const DashboardPage = () => {
             <EmptyState
               icon={<Lightbulb className="h-6 w-6" aria-hidden="true" />}
               title="Not enough data for insights yet"
-              message="Keep recording transactions and FinanceTrack will start spotting patterns in your spending."
+              message="Keep recording transactions and Moniq will start spotting patterns in your spending."
               compact
             />
           </div>

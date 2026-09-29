@@ -66,7 +66,7 @@ export const ANALYTICS_PERIODS = [
 ] as const;
 export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number];
 
-export const AUTH_COOKIE_NAME = 'financetrack_token';
+export const AUTH_COOKIE_NAME = 'moniq_token';
 
 /** Maximum amount accepted for a single transaction or budget. */
 export const MAX_AMOUNT = 1_000_000_000_000;

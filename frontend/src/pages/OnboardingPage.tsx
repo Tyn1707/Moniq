@@ -3,10 +3,11 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Check, Sparkles, TrendingUp } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
 import { AmountInput, Select } from '../components/ui/Field';
+import { Logo } from '../components/ui/Logo';
 import { PageLoader } from '../components/ui/States';
 import { useAuth } from '../hooks/useAuth';
 import { authService } from '../services';
@@ -123,9 +124,9 @@ export const OnboardingPage = () => {
           aria-hidden="true"
         />
         <div className="relative mx-auto max-w-xl space-y-3">
-          <span className="glass mx-auto flex h-14 w-14 items-center justify-center rounded-2xl">
-            <TrendingUp className="h-6 w-6" aria-hidden="true" />
-          </span>
+          <div className="flex justify-center pb-2">
+            <Logo className="h-12" onDark />
+          </div>
           <h1 className="text-display-sm text-white">
             Welcome, {user.name.split(' ')[0]}
           </h1>

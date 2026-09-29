@@ -25,7 +25,7 @@ export const resetDatabase = async (): Promise<void> => {
 
 export const extractCookie = (setCookie: string[] | string | undefined): string => {
   const headers = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
-  const token = headers.find((header) => header.startsWith('financetrack_token='));
+  const token = headers.find((header) => header.startsWith('moniq_token='));
   if (!token) throw new Error('Auth cookie was not set on the response.');
   return token.split(';')[0] as string;
 };

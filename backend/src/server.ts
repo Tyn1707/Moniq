@@ -5,7 +5,7 @@ import { prisma } from './lib/prisma';
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
-  console.log(`FinanceTrack API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+  console.log(`Moniq API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
 });
 
 const shutdown = async (signal: string): Promise<void> => {

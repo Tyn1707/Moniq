@@ -25,6 +25,17 @@ interface TransactionModalContextValue {
 
 const TransactionModalContext = createContext<TransactionModalContextValue | null>(null);
 
+/** Desktop sidebar collapse preference, remembered across visits. */
+const SIDEBAR_COLLAPSED_KEY = 'moniq.sidebarCollapsed';
+
+const readSidebarCollapsed = (): boolean => {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 export const useTransactionModal = (): TransactionModalContextValue => {
   const context = useContext(TransactionModalContext);
   if (!context) throw new Error('useTransactionModal must be used inside AppLayout.');
@@ -37,6 +48,18 @@ export const AppLayout = () => {
   const toast = useToast();
 
   const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const [isSidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((collapsed) => {
+      const next = !collapsed;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      } catch {
+        // Storage can be unavailable (private mode, quota); the toggle still works.
+      }
+      return next;
+    });
+  }, []);
   const [modalState, setModalState] = useState<{ open: boolean; transaction: Transaction | null }>({
     open: false,
     transaction: null,
@@ -74,7 +97,7 @@ export const AppLayout = () => {
 
   if (!user.onboardingCompleted) return <Navigate to="/onboarding" replace />;
 
-  const pageTitle = PAGE_TITLES[location.pathname] ?? 'FinanceTrack';
+  const pageTitle = PAGE_TITLES[location.pathname] ?? 'Moniq';
   const pageSubtitle = PAGE_SUBTITLES[location.pathname];
 
   return (
@@ -88,6 +111,8 @@ export const AppLayout = () => {
           onAddTransaction={openCreate}
           isDrawerOpen={isDrawerOpen}
           onCloseDrawer={() => setDrawerOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
