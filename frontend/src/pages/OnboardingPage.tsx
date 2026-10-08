@@ -117,7 +117,7 @@ export const OnboardingPage = () => {
     <div className="min-h-screen bg-ink-50">
       {/* Gradient banner: makes the first screen after sign-up feel like an
           arrival rather than another form. */}
-      <div className="relative overflow-hidden bg-ink-900 px-4 pb-20 pt-12 text-center text-white sm:px-6">
+      <div className="theme-static relative overflow-hidden bg-ink-900 px-4 pb-20 pt-12 text-center text-white sm:px-6">
         <div className="absolute inset-0 bg-mesh-accent opacity-75" aria-hidden="true" />
         <div
           className="absolute inset-0 bg-grid-faint opacity-40 [background-size:32px_32px]"
@@ -191,7 +191,7 @@ export const OnboardingPage = () => {
                       'press inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[0.8125rem] font-semibold transition-all duration-200',
                       isSelected
                         ? 'border-accent-500 bg-accent-50 text-accent-700'
-                        : 'border-ink-200 bg-white text-ink-600 hover:border-ink-300 hover:bg-ink-50',
+                        : 'border-ink-200 bg-surface text-ink-600 hover:border-ink-300 hover:bg-ink-50',
                     )}
                   >
                     {isSelected && <Check className="h-3.5 w-3.5" aria-hidden="true" />}

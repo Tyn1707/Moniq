@@ -162,7 +162,7 @@ export const SegmentedControl = <T extends string>({
             'press inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg font-semibold transition-all duration-200',
             size === 'sm' ? 'h-7 px-2.5 text-[0.75rem]' : 'h-8 px-3 text-[0.8125rem]',
             isActive
-              ? 'bg-white text-ink-900 shadow-subtle'
+              ? 'bg-surface text-ink-900 shadow-subtle'
               : 'text-ink-500 hover:text-ink-800',
           )}
         >

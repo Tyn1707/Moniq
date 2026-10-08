@@ -18,6 +18,7 @@ import clsx from 'clsx';
 import type { CategoryBreakdownItem, Currency, DailyPoint, MonthlyTrendPoint } from '../../types';
 import { formatCompactNumber, formatCurrency, formatShortDate } from '../../utils/format';
 import { EmptyState } from '../ui/States';
+import { useTheme } from '../../hooks/useTheme';
 
 /**
  * Charts (brief §8).
@@ -51,6 +52,17 @@ const axisProps = {
   axisLine: false,
 } as const;
 
+/**
+ * Gridlines, hover cursor and dot outlines. Recharts takes these as SVG
+ * attributes, which cannot read CSS variables, so they follow the theme here.
+ */
+const useChartChrome = () => {
+  const { isDark } = useTheme();
+  return isDark
+    ? { grid: '#252b39', cursorFill: '#1e1e42', cursorStroke: '#363e4f', dotStroke: '#13161f' }
+    : { grid: '#eef0f4', cursorFill: '#eef2ff', cursorStroke: '#c5ccd8', dotStroke: '#ffffff' };
+};
+
 // ---------------------------------------------------------------------------
 // Shared tooltip
 // ---------------------------------------------------------------------------
@@ -77,7 +89,7 @@ const ChartTooltip = ({
   if (!active || !payload?.length) return null;
 
   return (
-    <div className="min-w-[10rem] rounded-xl border border-ink-200/80 bg-white/95 px-3 py-2.5 shadow-float backdrop-blur">
+    <div className="min-w-[10rem] rounded-xl border border-ink-200/80 bg-surface/95 px-3 py-2.5 shadow-float backdrop-blur">
       {label && <p className="mb-1.5 text-[0.6875rem] font-bold uppercase tracking-wide text-ink-400">{label}</p>}
       <ul className="space-y-1">
         {payload.map((entry) => (
@@ -109,6 +121,7 @@ export const IncomeExpenseChart = ({
   data: MonthlyTrendPoint[];
   currency: Currency;
 }) => {
+  const chrome = useChartChrome();
   const hasData = data.some((point) => point.income > 0 || point.expense > 0);
 
   if (!hasData) {
@@ -144,12 +157,12 @@ export const IncomeExpenseChart = ({
                 <stop offset="100%" stopColor="#e11d48" />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} stroke="#eef0f4" />
+            <CartesianGrid vertical={false} stroke={chrome.grid} />
             <XAxis dataKey="label" {...axisProps} dy={4} />
             <YAxis {...axisProps} width={56} tickFormatter={formatCompactNumber} />
             <Tooltip
               content={<ChartTooltip currency={currency} />}
-              cursor={{ fill: '#eef2ff', radius: 8 }}
+              cursor={{ fill: chrome.cursorFill, radius: 8 }}
             />
             <Bar dataKey="income" name="Income" fill="url(#barIncome)" radius={[6, 6, 0, 0]} maxBarSize={26} />
             <Bar dataKey="expense" name="Expense" fill="url(#barExpense)" radius={[6, 6, 0, 0]} maxBarSize={26} />
@@ -286,6 +299,7 @@ export const DailyTrendChart = ({
   data: DailyPoint[];
   currency: Currency;
 }) => {
+  const chrome = useChartChrome();
   const hasData = data.some((point) => point.income > 0 || point.expense > 0);
 
   if (!hasData) {
@@ -319,7 +333,7 @@ export const DailyTrendChart = ({
                 <stop offset="100%" stopColor={EXPENSE} stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid vertical={false} stroke="#eef0f4" />
+            <CartesianGrid vertical={false} stroke={chrome.grid} />
             <XAxis
               dataKey="date"
               {...axisProps}
@@ -331,7 +345,7 @@ export const DailyTrendChart = ({
             <Tooltip
               content={<ChartTooltip currency={currency} />}
               labelFormatter={(value) => formatShortDate(`${String(value)}T00:00:00.000Z`)}
-              cursor={{ stroke: '#c5ccd8', strokeWidth: 1, strokeDasharray: '4 4' }}
+              cursor={{ stroke: chrome.cursorStroke, strokeWidth: 1, strokeDasharray: '4 4' }}
             />
             <Area
               type="monotone"
@@ -340,7 +354,7 @@ export const DailyTrendChart = ({
               stroke={INCOME}
               strokeWidth={2.5}
               fill="url(#areaIncome)"
-              activeDot={{ r: 4, strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: chrome.dotStroke }}
             />
             <Area
               type="monotone"
@@ -349,7 +363,7 @@ export const DailyTrendChart = ({
               stroke={EXPENSE}
               strokeWidth={2.5}
               fill="url(#areaExpense)"
-              activeDot={{ r: 4, strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: chrome.dotStroke }}
             />
           </AreaChart>
         </ResponsiveContainer>

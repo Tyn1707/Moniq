@@ -209,7 +209,7 @@ export const TransactionFormModal = ({
                       ? option.value === 'INCOME'
                         ? 'border-income-500 bg-income-50 text-income-700'
                         : 'border-expense-500 bg-expense-50 text-expense-700'
-                      : 'border-ink-200 bg-white text-ink-500 hover:border-ink-300 hover:bg-ink-50',
+                      : 'border-ink-200 bg-surface text-ink-500 hover:border-ink-300 hover:bg-ink-50',
                   )}
                 >
                   <input type="radio" value={option.value} className="sr-only" {...register('type')} />

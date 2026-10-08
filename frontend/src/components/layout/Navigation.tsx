@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Sparkles, X } from 'lucide-react';
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, X } from 'lucide-react';
 import clsx from 'clsx';
 import { NAV_ITEMS } from './navItems';
+import { ThemeToggle } from '../ui/ThemeToggle';
 import { Button, Fab } from '../ui/Button';
 import { Logo, Mascot } from '../ui/Logo';
 import { AnimatedCurrency } from '../ui/Motion';
@@ -25,7 +26,7 @@ import type { Currency, User } from '../../types';
 const RailTooltip = ({ label }: { label: string }) => (
   <span
     aria-hidden="true"
-    className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-[-4px] whitespace-nowrap rounded-lg bg-ink-900 px-2.5 py-1.5 text-[0.75rem] font-semibold text-white opacity-0 shadow-float transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
+    className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-[-4px] whitespace-nowrap rounded-lg bg-ink-900 theme-static px-2.5 py-1.5 text-[0.75rem] font-semibold text-white opacity-0 shadow-float transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100"
   >
     {label}
   </span>
@@ -132,7 +133,7 @@ const SidebarBody = ({
         page, not just the dashboard. Omitted when collapsed — a truncated
         figure is worse than none. */}
     {balance !== undefined && !collapsed && (
-      <div className="relative overflow-hidden rounded-2xl bg-ink-900 p-4 text-white">
+      <div className="theme-static relative overflow-hidden rounded-2xl bg-ink-900 p-4 text-white">
         <div className="absolute inset-0 bg-mesh-accent opacity-60" aria-hidden="true" />
         <div className="relative">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-white/60">
@@ -274,7 +275,7 @@ export const Sidebar = ({
   <>
     <aside
       className={clsx(
-        'relative z-40 hidden shrink-0 border-r border-ink-200/70 bg-white transition-[width] duration-300 ease-out motion-reduce:transition-none lg:block',
+        'relative z-40 hidden shrink-0 border-r border-ink-200/70 bg-surface transition-[width] duration-300 ease-out motion-reduce:transition-none lg:block',
         isCollapsed ? 'w-[4.5rem]' : 'w-[17rem]',
       )}
     >
@@ -297,11 +298,11 @@ export const Sidebar = ({
     {isDrawerOpen && (
       <div className="fixed inset-0 z-50 lg:hidden">
         <div
-          className="absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
+          className="theme-static absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
           onClick={onCloseDrawer}
           aria-hidden="true"
         />
-        <div className="relative h-full w-[17rem] max-w-[86%] animate-reveal-up overflow-y-auto bg-white shadow-float">
+        <div className="relative h-full w-[17rem] max-w-[86%] animate-reveal-up overflow-y-auto bg-surface shadow-float">
           <button
             type="button"
             onClick={onCloseDrawer}
@@ -328,11 +329,11 @@ export const Topbar = ({
   subtitle?: string;
   onOpenDrawer: () => void;
 }) => (
-  <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-ink-200/70 bg-white/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+  <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-ink-200/70 bg-surface/85 px-4 py-3 backdrop-blur-xl lg:hidden">
     <button
       type="button"
       onClick={onOpenDrawer}
-      className="press rounded-xl border border-ink-200 bg-white p-2 text-ink-600 shadow-subtle transition hover:bg-ink-50"
+      className="press rounded-xl border border-ink-200 bg-surface p-2 text-ink-600 shadow-subtle transition hover:bg-ink-50"
       aria-label="Open navigation"
     >
       <Menu className="h-4 w-4" aria-hidden="true" />
@@ -341,12 +342,7 @@ export const Topbar = ({
       <h1 className="truncate text-[0.9375rem] font-bold tracking-tight text-ink-900">{title}</h1>
       {subtitle && <p className="truncate text-[0.6875rem] text-ink-500">{subtitle}</p>}
     </div>
-    <span
-      className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent-50 text-accent-600"
-      aria-hidden="true"
-    >
-      <Sparkles className="h-4 w-4" />
-    </span>
+    <ThemeToggle />
   </header>
 );
 
@@ -399,7 +395,7 @@ export const BottomNav = ({ onAddTransaction }: { onAddTransaction: () => void }
       </div>
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200/70 bg-white/90 pb-safe backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200/70 bg-surface/90 pb-safe backdrop-blur-xl lg:hidden"
         aria-label="Main navigation"
       >
         <div className="flex items-stretch">

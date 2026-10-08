@@ -104,7 +104,7 @@ export const Modal = ({
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
-        className="absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
+        className="theme-static absolute inset-0 animate-fade-in bg-ink-950/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -116,7 +116,7 @@ export const Modal = ({
         aria-describedby={description ? 'modal-description' : undefined}
         tabIndex={-1}
         className={clsx(
-          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white shadow-float',
+          'relative flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-float',
           'animate-sheet-up sm:animate-reveal-scale sm:rounded-3xl',
           SIZES[size],
         )}

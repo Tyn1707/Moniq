@@ -35,7 +35,7 @@ export const BalanceHero = ({
   const netIsPositive = currentMonth.net >= 0;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-ink-900 text-white shadow-float">
+    <section className="theme-static relative overflow-hidden rounded-3xl bg-ink-900 text-white shadow-float dark:ring-1 dark:ring-white/10">
       {/* Layered decoration: colour bloom, then a faint grid for texture. Both
           are purely decorative and hidden from assistive technology. */}
       <div className="absolute inset-0 bg-mesh-accent opacity-70" aria-hidden="true" />

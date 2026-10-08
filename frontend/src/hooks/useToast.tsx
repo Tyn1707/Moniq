@@ -93,7 +93,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
           {toasts.map((toast) => (
             <div
               key={toast.id}
-              className="pointer-events-auto flex w-full animate-toast-in items-stretch overflow-hidden rounded-2xl border border-ink-200/80 bg-white shadow-float sm:w-[22rem]"
+              className="pointer-events-auto flex w-full animate-toast-in items-stretch overflow-hidden rounded-2xl border border-ink-200/80 bg-surface shadow-float sm:w-[22rem]"
             >
               {/* Colour rail: carries the variant without tinting the whole card. */}
               <span className={clsx('w-1 shrink-0', VARIANTS[toast.variant].accent)} aria-hidden="true" />

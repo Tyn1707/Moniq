@@ -31,7 +31,7 @@ const LoadingRegion = ({ label, children }: { label: string; children: ReactNode
 
 export const BalanceHeroSkeleton = () => (
   <LoadingRegion label="Loading balance">
-    <div className="relative overflow-hidden rounded-3xl bg-ink-800 p-6 sm:p-8">
+    <div className="theme-static relative overflow-hidden rounded-3xl bg-ink-800 p-6 sm:p-8">
       <div className="space-y-4">
         <Skeleton className="h-3 w-28 bg-white/15" />
         <Skeleton className="h-12 w-64 bg-white/20" />

@@ -24,7 +24,7 @@ const TONES: Record<
   },
   neutral: {
     border: 'border-ink-200',
-    bg: 'bg-white',
+    bg: 'bg-surface',
     chip: 'bg-accent-50 text-accent-600',
     icon: Lightbulb,
   },

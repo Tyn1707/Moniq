@@ -125,7 +125,7 @@ export const ProfilePage = () => {
 
       {/* Identity banner: gives the page an anchor instead of opening on a form. */}
       <Reveal>
-        <section className="relative overflow-hidden rounded-3xl bg-ink-900 p-6 text-white sm:p-7">
+        <section className="theme-static relative overflow-hidden rounded-3xl bg-ink-900 p-6 text-white sm:p-7 dark:ring-1 dark:ring-white/10">
           <div className="absolute inset-0 bg-mesh-accent opacity-70" aria-hidden="true" />
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
             <span

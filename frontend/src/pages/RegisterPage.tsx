@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AlertCircle, Check, Eye, EyeOff, Mail, User } from 'lucide-react';
+import { ArrowRight, Check, Lock, Mail, User } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Field';
+import { AuthAlert, PasswordToggle } from '../components/auth/AuthParts';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/api';
 
@@ -44,6 +45,7 @@ export const RegisterPage = () => {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -77,34 +79,29 @@ export const RegisterPage = () => {
           setError(fieldError.field as keyof FormValues, { message: fieldError.message });
           return;
         }
+        setAttempt((count) => count + 1);
         setFormError(error.message);
       } else {
+        setAttempt((count) => count + 1);
         setFormError('Something went wrong. Please try again.');
       }
     }
   });
 
   return (
-    <div className="space-y-7">
-      <header className="space-y-1.5">
+    <div className="space-y-6">
+      <header className="space-y-1">
         <h1 className="text-display-sm text-ink-900">Create your account</h1>
         <p className="text-[0.875rem] text-ink-500">
           Start tracking your income, expenses and budgets in a couple of minutes.
         </p>
       </header>
 
-      {formError && (
-        <div
-          role="alert"
-          className="flex animate-reveal-up items-start gap-2.5 rounded-xl border border-expense-200 bg-expense-50 px-3.5 py-3 text-[0.8125rem] font-medium text-expense-700"
-        >
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <p>{formError}</p>
-        </div>
-      )}
+      {formError && <AuthAlert key={attempt} message={formError} />}
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
+          appearance="line"
           label="Full name"
           autoComplete="name"
           placeholder="Sarah Wijaya"
@@ -115,6 +112,7 @@ export const RegisterPage = () => {
         />
 
         <Input
+          appearance="line"
           label="Email"
           type="email"
           autoComplete="email"
@@ -127,94 +125,103 @@ export const RegisterPage = () => {
 
         <div className="space-y-2.5">
           <Input
+            appearance="line"
             label="Password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             placeholder="••••••••"
+            icon={<Lock className="h-4 w-4" aria-hidden="true" />}
             required
             error={errors.password?.message}
             trailing={
-              <button
-                type="button"
-                onClick={() => setShowPassword((visible) => !visible)}
-                className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-ink-500 transition hover:text-ink-800"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                ) : (
-                  <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
+              <PasswordToggle visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
             }
             {...register('password')}
           />
 
-          {password && (
-            <div className="animate-reveal-up space-y-2">
-              <div className="flex gap-1" aria-hidden="true">
+          {/* Strength meter: grid-rows trick lets it expand smoothly from 0 height. */}
+          <div
+            aria-hidden={!password || undefined}
+            className={clsx(
+              'grid transition-[grid-template-rows,opacity] duration-500 ease-out-expo',
+              password ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
+            )}
+          >
+            <div className="space-y-2 overflow-hidden">
+              <div className="flex gap-1.5 pt-0.5" aria-hidden="true">
                 {CHECKS.map((check, index) => (
-                  <span
-                    key={check.label}
-                    className={clsx(
-                      'h-1 flex-1 rounded-full transition-colors duration-300',
-                      index < passedChecks
-                        ? passedChecks === 1
+                  <span key={check.label} className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100">
+                    <span
+                      className={clsx(
+                        'block h-full origin-left rounded-full transition-all duration-500 ease-spring',
+                        index < passedChecks ? 'scale-x-100' : 'scale-x-0',
+                        passedChecks === 1
                           ? 'bg-expense-400'
                           : passedChecks === 2
                             ? 'bg-warn-400'
-                            : 'bg-income-500'
-                        : 'bg-ink-200',
-                    )}
-                  />
+                            : 'bg-income-500',
+                      )}
+                    />
+                  </span>
                 ))}
               </div>
-              <ul className="space-y-1">
+              <ul className="flex flex-wrap gap-1.5">
                 {CHECKS.map((check) => {
-                  const passed = check.test(password);
+                  const passed = check.test(password ?? '');
                   return (
                     <li
                       key={check.label}
                       className={clsx(
-                        'flex items-center gap-1.5 text-[0.75rem]',
-                        passed ? 'text-income-600' : 'text-ink-400',
+                        'flex items-center gap-1 rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold transition-colors duration-300',
+                        passed ? 'bg-income-50 text-income-700' : 'bg-ink-100/70 text-ink-500',
                       )}
                     >
                       <Check
-                        className={clsx('h-3 w-3 shrink-0', !passed && 'opacity-40')}
+                        className={clsx(
+                          'h-3 w-3 shrink-0 transition-transform duration-300 ease-spring',
+                          passed ? 'scale-100' : 'scale-0',
+                        )}
                         aria-hidden="true"
                       />
                       {check.label}
-                      {!check.required && <span className="text-ink-300">(recommended)</span>}
+                      {!check.required && <span className="font-medium opacity-60">(recommended)</span>}
+                      <span className="sr-only">{passed ? ' — met' : ' — not met'}</span>
                     </li>
                   );
                 })}
               </ul>
             </div>
-          )}
+          </div>
         </div>
 
         <Input
+          appearance="line"
           label="Confirm password"
           type={showPassword ? 'text' : 'password'}
           autoComplete="new-password"
           placeholder="••••••••"
+          icon={<Lock className="h-4 w-4" aria-hidden="true" />}
           required
           error={errors.confirmPassword?.message}
           {...register('confirmPassword')}
         />
 
-        <Button type="submit" fullWidth size="lg" isLoading={isSubmitting}>
+        <Button
+          type="submit"
+          fullWidth
+          size="lg"
+          isLoading={isSubmitting}
+          className="btn-shine group !mt-6 rounded-2xl"
+          rightIcon={
+            <ArrowRight
+              className="h-4 w-4 transition-transform duration-300 ease-spring group-hover:translate-x-1"
+              aria-hidden="true"
+            />
+          }
+        >
           Create account
         </Button>
       </form>
-
-      <p className="text-center text-[0.875rem] text-ink-500">
-        Already have an account?{' '}
-        <Link to="/login" className="font-bold text-accent-600 transition hover:text-accent-700">
-          Sign in
-        </Link>
-      </p>
     </div>
   );
 };

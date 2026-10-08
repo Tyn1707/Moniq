@@ -18,7 +18,7 @@ import clsx from 'clsx';
  */
 
 const FIELD_BASE =
-  'w-full rounded-xl border bg-white text-ink-900 shadow-subtle transition-all duration-200 placeholder:text-ink-400 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400';
+  'w-full rounded-xl border bg-surface text-ink-900 shadow-subtle transition-all duration-200 placeholder:text-ink-400 disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400';
 
 const borderFor = (hasError: boolean): string =>
   hasError
@@ -79,16 +79,46 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   prefix?: string;
   icon?: ReactNode;
   trailing?: ReactNode;
+  /**
+   * `outline` (default) is the bordered field used across the app. `line` is an
+   * underline-only field — no box, just a baseline that sweeps to the accent
+   * colour on focus. Used on the auth pages.
+   */
+  appearance?: 'outline' | 'line';
 }
 
+/*
+ * The underline is the field's only focus indicator, so it thickens to 2px and
+ * changes colour on focus (not colour alone) and the accent sweep sits on top.
+ */
+const LINE_FIELD =
+  'peer w-full rounded-none border-0 border-b bg-transparent text-ink-900 shadow-none transition-colors duration-300 placeholder:text-ink-300 focus:outline-none focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:text-ink-400';
+
+const lineStateFor = (hasError: boolean): string =>
+  hasError ? 'border-expense-300' : 'border-ink-200 hover:border-ink-400';
+
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, prefix, icon, trailing, className, required, ...rest }, ref) => {
+  (
+    { label, error, hint, prefix, icon, trailing, className, required, appearance = 'outline', ...rest },
+    ref,
+  ) => {
     const id = useId();
+    const line = appearance === 'line';
     return (
       <FieldWrapper id={id} label={label} error={error} hint={hint} required={required} trailing={trailing}>
-        <div className="relative">
+        <div className="group relative">
           {icon && (
-            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400">
+            <span
+              className={clsx(
+                'pointer-events-none absolute top-1/2 -translate-y-1/2',
+                line
+                  ? clsx(
+                      'left-0 transition-colors duration-200',
+                      error ? 'text-expense-400' : 'text-ink-400 group-focus-within:text-accent-500',
+                    )
+                  : 'left-3.5 text-ink-400',
+              )}
+            >
               {icon}
             </span>
           )}
@@ -104,14 +134,24 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
             className={clsx(
-              FIELD_BASE,
-              'h-11 px-3.5',
-              borderFor(Boolean(error)),
-              (prefix || icon) && 'pl-10',
+              line
+                ? [LINE_FIELD, 'h-11 px-0', lineStateFor(Boolean(error))]
+                : [FIELD_BASE, 'h-11 px-3.5', borderFor(Boolean(error))],
+              (prefix || icon) && (line ? 'pl-7' : 'pl-10'),
               className,
             )}
             {...rest}
           />
+          {line && (
+            // Accent underline that grows out from the centre on focus.
+            <span
+              aria-hidden="true"
+              className={clsx(
+                'pointer-events-none absolute inset-x-0 bottom-0 h-0.5 origin-center scale-x-0 rounded-full transition-transform duration-500 ease-out-expo peer-focus:scale-x-100',
+                error ? 'bg-expense-500' : 'bg-accent-gradient',
+              )}
+            />
+          )}
         </div>
       </FieldWrapper>
     );
@@ -133,7 +173,7 @@ export const AmountInput = forwardRef<HTMLInputElement, InputProps & { currencyL
             'flex items-center gap-2 rounded-2xl border px-4 py-3 transition-all duration-200',
             error
               ? 'border-expense-300 bg-expense-50/40 focus-within:ring-4 focus-within:ring-expense-100'
-              : 'border-ink-200 bg-ink-50/60 focus-within:border-accent-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-accent-100',
+              : 'border-ink-200 bg-ink-50/60 focus-within:border-accent-500 focus-within:bg-surface focus-within:ring-4 focus-within:ring-accent-100',
           )}
         >
           <span className="font-display text-lg font-semibold text-ink-400">{currencyLabel}</span>

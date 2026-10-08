@@ -26,7 +26,7 @@ const VARIANTS: Record<Variant, string> = {
   primary:
     'bg-accent-gradient text-white shadow-glow hover:brightness-[1.08] disabled:opacity-50 disabled:shadow-none',
   secondary:
-    'border border-ink-200 bg-white text-ink-700 shadow-subtle hover:border-ink-300 hover:bg-ink-50 disabled:text-ink-400',
+    'border border-ink-200 bg-surface text-ink-700 shadow-subtle hover:border-ink-300 hover:bg-ink-50 disabled:text-ink-400',
   soft: 'bg-accent-50 text-accent-700 hover:bg-accent-100 disabled:text-accent-300',
   ghost: 'text-ink-600 hover:bg-ink-100 hover:text-ink-900 disabled:text-ink-400',
   danger: 'bg-expense-gradient text-white shadow-subtle hover:brightness-[1.08] disabled:opacity-50',

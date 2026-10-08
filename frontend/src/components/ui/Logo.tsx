@@ -27,7 +27,14 @@ export const Logo = ({ className, onDark = false }: { className?: string; onDark
     />
   );
 
-  if (!onDark) return image;
+  if (!onDark) {
+    // In dark mode the plum lettering needs the same light backing as `onDark`.
+    return (
+      <span className="inline-flex dark:rounded-2xl dark:bg-white/95 dark:px-3 dark:py-1.5 dark:shadow-subtle">
+        {image}
+      </span>
+    );
+  }
 
   return (
     <span className="inline-flex rounded-2xl bg-white/95 px-3 py-1.5 shadow-subtle">{image}</span>

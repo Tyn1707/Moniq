@@ -64,7 +64,7 @@ const ChangeLabel = ({ change, invert = false }: { change: number | null; invert
 };
 
 const dateInputClasses =
-  'h-10 rounded-xl border border-ink-200 bg-white px-3 text-[0.8125rem] font-medium text-ink-700 shadow-subtle transition focus:border-accent-500 focus:ring-4 focus:ring-accent-100';
+  'h-10 rounded-xl border border-ink-200 bg-surface px-3 text-[0.8125rem] font-medium text-ink-700 shadow-subtle transition focus:border-accent-500 focus:ring-4 focus:ring-accent-100';
 
 export const AnalyticsPage = () => {
   const [period, setPeriod] = useState<AnalyticsPeriod>('this_month');

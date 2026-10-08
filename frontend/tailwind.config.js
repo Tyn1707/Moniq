@@ -9,77 +9,44 @@
  * dense financial screen readable — colour is reserved for meaning, never
  * decoration.
  */
+/** Maps each step of a ramp to its CSS variable, e.g. ink-500 → --ink-500. */
+const ramp = (name, steps, defaultStep) => {
+  const colors = Object.fromEntries(
+    steps.map((step) => [step, `rgb(var(--${name}-${step}) / <alpha-value>)`]),
+  );
+  if (defaultStep) colors.DEFAULT = colors[defaultStep];
+  return colors;
+};
+
 export default {
+  // `dark:` applies under <html class="dark">, except inside `.theme-static`
+  // regions, which always render with the light tokens.
+  darkMode: ['variant', '&:is(.dark *):not(.theme-static *)'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      /*
+       * Themeable ramps resolve to CSS variables (see index.css), so one class
+       * such as `text-ink-900` is correct in both light and dark mode without a
+       * `dark:` twin. Values are space-separated RGB so `/<alpha>` still works.
+       */
       colors: {
-        /** Neutral ramp. Cool, slightly blue-shifted so it sits under the accent. */
-        ink: {
-          50: '#f7f8fa',
-          100: '#eef0f4',
-          200: '#dfe3ea',
-          300: '#c5ccd8',
-          400: '#98a2b3',
-          500: '#6b7688',
-          600: '#4d566a',
-          700: '#3a4253',
-          800: '#252b38',
-          900: '#161a24',
-          950: '#0b0e15',
-        },
+        /** Neutral ramp. Cool, slightly blue-shifted; inverted in dark mode. */
+        ink: ramp('ink', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
         /** Accent: indigo, used for balance, primary actions and active nav. */
-        accent: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
-        },
+        accent: ramp('accent', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]),
         /** Violet, only ever used as the far end of the accent gradient. */
         grape: {
           400: '#a78bfa',
           500: '#8b5cf6',
           600: '#7c3aed',
         },
-        income: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          400: '#34d399',
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          DEFAULT: '#059669',
-        },
-        expense: {
-          50: '#fff1f2',
-          100: '#ffe4e6',
-          200: '#fecdd3',
-          400: '#fb7185',
-          500: '#f43f5e',
-          600: '#e11d48',
-          700: '#be123c',
-          DEFAULT: '#e11d48',
-        },
-        warn: {
-          50: '#fffbeb',
-          100: '#fef3c7',
-          200: '#fde68a',
-          400: '#fbbf24',
-          500: '#f59e0b',
-          600: '#d97706',
-          700: '#b45309',
-          DEFAULT: '#d97706',
-        },
+        income: ramp('income', [50, 100, 200, 400, 500, 600, 700], 600),
+        expense: ramp('expense', [50, 100, 200, 400, 500, 600, 700], 600),
+        warn: ramp('warn', [50, 100, 200, 400, 500, 600, 700], 600),
+        /** Card / panel background: white in light mode, raised slate in dark. */
+        surface: 'rgb(var(--surface) / <alpha-value>)',
       },
-
       fontFamily: {
         // Plus Jakarta Sans has slightly more character than Inter in large
         // sizes, so headings and money figures use it while body text stays
@@ -123,7 +90,7 @@ export default {
         'mesh-accent':
           'radial-gradient(at 18% 12%, rgb(129 140 248 / 0.45) 0px, transparent 55%), radial-gradient(at 88% 8%, rgb(167 139 250 / 0.40) 0px, transparent 50%), radial-gradient(at 70% 92%, rgb(99 102 241 / 0.35) 0px, transparent 55%)',
         shimmer:
-          'linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.65) 50%, transparent 100%)',
+          'linear-gradient(90deg, transparent 0%, rgb(var(--shimmer)) 50%, transparent 100%)',
         'grid-faint':
           'linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px)',
       },
@@ -164,6 +131,74 @@ export default {
           '0%, 100%': { transform: 'translateY(0)' },
           '50%': { transform: 'translateY(-6px)' },
         },
+        // Slow organic drift for the auth-page background blooms.
+        blob: {
+          '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+          '33%': { transform: 'translate(40px, -50px) scale(1.08)' },
+          '66%': { transform: 'translate(-30px, 30px) scale(0.94)' },
+        },
+        // Short horizontal shake for a rejected form submission.
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-5px)' },
+          '40%, 80%': { transform: 'translateX(5px)' },
+        },
+        wiggle: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(-8deg)' },
+          '75%': { transform: 'rotate(8deg)' },
+        },
+        // Soap-bubble life cycle: a soft squish while drifting, a burst, a re-form.
+        'bubble-wobble': {
+          '0%, 100%': { transform: 'scale(1, 1)' },
+          '33%': { transform: 'scale(1.045, 0.96)' },
+          '66%': { transform: 'scale(0.965, 1.035)' },
+        },
+        // Puffer-fish inflate: two gulps of air, a final swell, a tense tremble.
+        'bubble-inflate': {
+          '0%': { transform: 'scale(1)' },
+          '22%': { transform: 'scale(1.2, 1.12)' },
+          '34%': { transform: 'scale(1.12)' },
+          '58%': { transform: 'scale(1.42, 1.34)' },
+          '70%': { transform: 'scale(1.34)' },
+          '88%': { transform: 'scale(1.6)' },
+          '92%': { transform: 'scale(1.57, 1.63)' },
+          '96%': { transform: 'scale(1.63, 1.57)' },
+          '100%': { transform: 'scale(1.6)' },
+        },
+        // Picks up from the inflated size and bursts almost instantly, like soap film.
+        'bubble-burst': {
+          '0%': { transform: 'scale(1.6)', opacity: '1' },
+          '40%': { transform: 'scale(1.85)', opacity: '0.5' },
+          '100%': { transform: 'scale(2)', opacity: '0' },
+        },
+        'bubble-in': {
+          '0%': { transform: 'scale(0.15)', opacity: '0' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        droplet: {
+          '0%': { transform: 'translate(-50%, -50%) scale(1)', opacity: '0.9' },
+          '100%': {
+            transform: 'translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0.2)',
+            opacity: '0',
+          },
+        },
+        // Description card zooming out of a popped bubble, centred on it
+        // (`--sx/--sy` nudge it back on-screen near the edges).
+        'card-zoom': {
+          '0%': {
+            transform: 'translate(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, 0px))) scale(0.25)',
+            opacity: '0',
+          },
+          '60%': {
+            transform: 'translate(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, 0px))) scale(1.05)',
+            opacity: '1',
+          },
+          '100%': {
+            transform: 'translate(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, 0px))) scale(1)',
+            opacity: '1',
+          },
+        },
       },
 
       animation: {
@@ -176,6 +211,20 @@ export default {
         'pulse-ring': 'pulse-ring 2.4s cubic-bezier(0.16, 1, 0.3, 1) infinite',
         'draw-ring': 'draw-ring 900ms cubic-bezier(0.16, 1, 0.3, 1) both',
         float: 'float 5s ease-in-out infinite',
+        'float-slow': 'float 7s ease-in-out infinite',
+        blob: 'blob 18s ease-in-out infinite',
+        'blob-slow': 'blob 24s ease-in-out infinite reverse',
+        shake: 'shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both',
+        wiggle: 'wiggle 600ms ease-in-out',
+        'bubble-wobble': 'bubble-wobble 3.6s ease-in-out infinite',
+        // Must match INFLATE_MS in FeatureBubbles.tsx.
+        'bubble-inflate': 'bubble-inflate 520ms cubic-bezier(0.45, 0, 0.55, 1) forwards',
+        'bubble-burst': 'bubble-burst 170ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        'bubble-in': 'bubble-in 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        droplet: 'droplet 480ms cubic-bezier(0.16, 1, 0.3, 1) forwards',
+        // Starts ~90ms in, as the burst peaks, so the card reads as coming out of it.
+        'card-zoom': 'card-zoom 460ms cubic-bezier(0.34, 1.56, 0.64, 1) 200ms both',
+        'spin-slow': 'spin 9s linear infinite',
       },
     },
   },
