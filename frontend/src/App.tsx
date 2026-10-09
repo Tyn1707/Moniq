@@ -7,8 +7,10 @@ import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { PortfolioPage } from './pages/PortfolioPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { StockDetailPage } from './pages/StockDetailPage';
 import { TransactionsPage } from './pages/TransactionsPage';
 
 /**
@@ -33,6 +35,8 @@ export const App = () => (
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/transactions" element={<TransactionsPage />} />
       <Route path="/budgets" element={<BudgetsPage />} />
+      <Route path="/portfolio" element={<PortfolioPage />} />
+      <Route path="/portfolio/:symbol" element={<StockDetailPage />} />
       <Route path="/analytics" element={<AnalyticsPage />} />
       <Route path="/profile" element={<ProfilePage />} />
     </Route>

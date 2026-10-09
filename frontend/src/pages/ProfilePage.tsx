@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation } from '@tanstack/react-query';
 import { Calendar, Eye, EyeOff, Mail, ShieldCheck, Wallet } from 'lucide-react';
 import { Card } from '../components/ui';
 import { Button } from '../components/ui/Button';
-import { AmountInput, Input, Select } from '../components/ui/Field';
+import { FormattedAmountInput, Input, Select } from '../components/ui/Field';
 import { Reveal } from '../components/ui/Motion';
 import { PageHeader } from '../components/layout/PageHeader';
 import { useAuth } from '../hooks/useAuth';
@@ -194,18 +194,24 @@ export const ProfilePage = () => {
                 ))}
               </Select>
 
-              <AmountInput
-                label="Starting balance"
-                currencyLabel={user.currency}
-                type="number"
-                step="0.01"
-                min="0"
-                hint={`Money you had before recording transactions. Currently ${formatCurrency(
-                  user.initialBalance,
-                  user.currency,
-                )}.`}
-                error={profileForm.formState.errors.initialBalance?.message}
-                {...profileForm.register('initialBalance')}
+              <Controller
+                control={profileForm.control}
+                name="initialBalance"
+                render={({ field }) => (
+                  <FormattedAmountInput
+                    label="Starting balance"
+                    currencyLabel={user.currency}
+                    hint={`Money you had before recording transactions. Currently ${formatCurrency(
+                      user.initialBalance,
+                      user.currency,
+                    )}.`}
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={profileForm.formState.errors.initialBalance?.message}
+                  />
+                )}
               />
 
               <div className="flex justify-end pt-1">

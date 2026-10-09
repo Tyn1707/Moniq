@@ -4,14 +4,18 @@ import {
   budgetService,
   categoryService,
   dashboardService,
+  portfolioService,
   transactionService,
 } from '../services';
 import type {
   AnalyticsPeriod,
   BudgetPayload,
+  ChartRange,
+  HoldingPayload,
   TransactionFilters,
   TransactionPayload,
   TransactionType,
+  UpdateHoldingPayload,
 } from '../types';
 
 /**
@@ -30,6 +34,10 @@ export const queryKeys = {
   budgets: (month?: string) => ['budgets', month ?? 'current'] as const,
   analytics: (period: AnalyticsPeriod, from?: string, to?: string) =>
     ['analytics', period, from ?? null, to ?? null] as const,
+  portfolio: ['portfolio'] as const,
+  balanceHistory: (range: ChartRange) => ['balance-history', range] as const,
+  priceHistory: (symbol: string, range: ChartRange) =>
+    ['price-history', symbol, range] as const,
 };
 
 /** Caches that depend on transaction data and must be refreshed after a write. */
@@ -161,3 +169,76 @@ export const useDeleteCategory = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
   });
 };
+
+
+// ---------------------------------------------------------------------------
+// Portfolio
+// ---------------------------------------------------------------------------
+
+/** Keep live prices moving without hammering the vendor; backend caches for 60s. */
+const PORTFOLIO_REFETCH_INTERVAL = 60_000;
+
+export const usePortfolio = () =>
+  useQuery({
+    queryKey: queryKeys.portfolio,
+    queryFn: () => portfolioService.list(),
+    // Prices drift during market hours; a gentle poll keeps the view current.
+    refetchInterval: PORTFOLIO_REFETCH_INTERVAL,
+    refetchOnWindowFocus: true,
+  });
+
+/** Net worth on the dashboard includes investments, so refresh it too. */
+const useInvalidatePortfolio = () => {
+  const queryClient = useQueryClient();
+  return async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.portfolio }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    ]);
+  };
+};
+
+export const useCreateHolding = () => {
+  const invalidate = useInvalidatePortfolio();
+  return useMutation({
+    mutationFn: (payload: HoldingPayload) => portfolioService.create(payload),
+    onSuccess: invalidate,
+  });
+};
+
+export const useUpdateHolding = () => {
+  const invalidate = useInvalidatePortfolio();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateHoldingPayload }) =>
+      portfolioService.update(id, payload),
+    onSuccess: invalidate,
+  });
+};
+
+export const useDeleteHolding = () => {
+  const invalidate = useInvalidatePortfolio();
+  return useMutation({
+    mutationFn: (id: string) => portfolioService.remove(id),
+    onSuccess: invalidate,
+  });
+};
+
+// ---------------------------------------------------------------------------
+// Interactive history charts
+// ---------------------------------------------------------------------------
+
+export const useBalanceHistory = (range: ChartRange) =>
+  useQuery({
+    queryKey: queryKeys.balanceHistory(range),
+    queryFn: async () => (await dashboardService.balanceHistory(range)).data,
+    // Derived from transactions, which change rarely between views.
+    staleTime: 60_000,
+  });
+
+export const usePriceHistory = (symbol: string, range: ChartRange) =>
+  useQuery({
+    queryKey: queryKeys.priceHistory(symbol, range),
+    queryFn: async () => (await portfolioService.history(symbol, range)).data,
+    enabled: Boolean(symbol),
+    staleTime: 60_000,
+  });

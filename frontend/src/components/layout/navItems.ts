@@ -1,4 +1,4 @@
-import { LayoutDashboard, PieChart, PiggyBank, Receipt, UserCircle } from 'lucide-react';
+import { LayoutDashboard, LineChart, PieChart, PiggyBank, Receipt, UserCircle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /** Single source of truth for navigation (brief §27), used by every nav surface. */
@@ -12,6 +12,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { to: '/transactions', label: 'Activity', icon: Receipt },
   { to: '/budgets', label: 'Budgets', icon: PiggyBank },
+  { to: '/portfolio', label: 'Invest', icon: LineChart },
   { to: '/analytics', label: 'Insights', icon: PieChart },
   { to: '/profile', label: 'Profile', icon: UserCircle },
 ];
@@ -21,6 +22,7 @@ export const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/transactions': 'Transactions',
   '/budgets': 'Budgets',
+  '/portfolio': 'Portfolio',
   '/analytics': 'Analytics',
   '/profile': 'Profile',
 };
@@ -29,6 +31,7 @@ export const PAGE_SUBTITLES: Record<string, string> = {
   '/dashboard': 'Your money at a glance',
   '/transactions': 'Search and manage your history',
   '/budgets': 'Track spending against limits',
+  '/portfolio': 'Live value of your investments',
   '/analytics': 'Patterns and insights',
   '/profile': 'Account and preferences',
 };

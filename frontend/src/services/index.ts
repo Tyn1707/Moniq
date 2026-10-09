@@ -2,17 +2,26 @@ import { apiRequest, type Envelope } from './api';
 import type {
   AnalyticsData,
   AnalyticsPeriod,
+  BalanceHistoryData,
   Budget,
   BudgetListData,
   BudgetPayload,
   Category,
+  ChartRange,
   Currency,
   DashboardData,
+  Holding,
+  HoldingPayload,
   Pagination,
+  PortfolioData,
+  PriceHistoryData,
+  Quote,
+  SymbolSearchResult,
   Transaction,
   TransactionFilters,
   TransactionPayload,
   TransactionType,
+  UpdateHoldingPayload,
   User,
 } from '../types';
 
@@ -112,6 +121,9 @@ export const categoryService = {
 
 export const dashboardService = {
   get: () => apiRequest<Envelope<DashboardData>>('/dashboard'),
+
+  balanceHistory: (range: ChartRange) =>
+    apiRequest<Envelope<BalanceHistoryData>>('/balance-history', { query: { range } }),
 };
 
 export const budgetService = {
@@ -138,4 +150,52 @@ export const analyticsService = {
     apiRequest<Envelope<AnalyticsData>>('/analytics', {
       query: { period: params.period, from: params.from, to: params.to },
     }),
+};
+
+// ---------------------------------------------------------------------------
+// Portfolio
+// ---------------------------------------------------------------------------
+
+interface PortfolioListResponse {
+  data: Holding[];
+  totals: PortfolioData['totals'];
+  currency: PortfolioData['currency'];
+  pricesAsOf: PortfolioData['pricesAsOf'];
+  pricesStale: PortfolioData['pricesStale'];
+  holdingCount: PortfolioData['holdingCount'];
+}
+
+export const portfolioService = {
+  list: async (): Promise<PortfolioData> => {
+    const response = await apiRequest<PortfolioListResponse>('/portfolio');
+    return {
+      holdings: response.data,
+      totals: response.totals,
+      currency: response.currency,
+      pricesAsOf: response.pricesAsOf,
+      pricesStale: response.pricesStale,
+      holdingCount: response.holdingCount,
+    };
+  },
+
+  create: (payload: HoldingPayload) =>
+    apiRequest<Envelope<Holding>>('/portfolio', { method: 'POST', body: payload }),
+
+  update: (id: string, payload: UpdateHoldingPayload) =>
+    apiRequest<Envelope<Holding>>(`/portfolio/${id}`, { method: 'PUT', body: payload }),
+
+  remove: (id: string) =>
+    apiRequest<Envelope<{ id: string }>>(`/portfolio/${id}`, { method: 'DELETE' }),
+
+  search: (query: string) =>
+    apiRequest<Envelope<SymbolSearchResult[]>>('/portfolio/search', { query: { q: query } }),
+
+  quote: (symbol: string) =>
+    apiRequest<Envelope<Quote>>(`/portfolio/quote/${encodeURIComponent(symbol)}`),
+
+  history: (symbol: string, range: ChartRange) =>
+    apiRequest<Envelope<PriceHistoryData>>(
+      `/portfolio/history/${encodeURIComponent(symbol)}`,
+      { query: { range } },
+    ),
 };

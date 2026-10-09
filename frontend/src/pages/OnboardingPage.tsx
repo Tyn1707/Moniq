@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Check, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../components/ui/Button';
-import { AmountInput, Select } from '../components/ui/Field';
+import { FormattedAmountInput, Select } from '../components/ui/Field';
 import { Logo } from '../components/ui/Logo';
 import { PageLoader } from '../components/ui/States';
 import { useAuth } from '../hooks/useAuth';
@@ -62,6 +62,7 @@ export const OnboardingPage = () => {
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -147,28 +148,40 @@ export const OnboardingPage = () => {
             ))}
           </Select>
 
-          <AmountInput
-            label="How much money do you have right now?"
-            currencyLabel={currency}
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0"
-            hint="Your starting balance. Leave it at 0 if you would rather begin from scratch."
-            error={errors.initialBalance?.message}
-            {...register('initialBalance')}
+          <Controller
+            control={control}
+            name="initialBalance"
+            render={({ field }) => (
+              <FormattedAmountInput
+                label="How much money do you have right now?"
+                currencyLabel={currency}
+                placeholder="0"
+                hint="Your starting balance. Leave it at 0 if you would rather begin from scratch."
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.initialBalance?.message}
+              />
+            )}
           />
 
-          <AmountInput
-            label="Monthly income estimate"
-            currencyLabel={currency}
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="0"
-            hint="Optional — kept as a reference on your profile."
-            error={errors.monthlyIncomeTarget?.message}
-            {...register('monthlyIncomeTarget')}
+          <Controller
+            control={control}
+            name="monthlyIncomeTarget"
+            render={({ field }) => (
+              <FormattedAmountInput
+                label="Monthly income estimate"
+                currencyLabel={currency}
+                placeholder="0"
+                hint="Optional — kept as a reference on your profile."
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.monthlyIncomeTarget?.message}
+              />
+            )}
           />
 
           <fieldset>

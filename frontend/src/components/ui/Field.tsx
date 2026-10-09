@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { AlertCircle, ChevronDown } from 'lucide-react';
 import clsx from 'clsx';
+import { formatGroupedNumber, parseGroupedNumber } from '../../utils/format';
 
 /**
  * Form controls.
@@ -300,3 +301,119 @@ export const SearchInput = forwardRef<
   </div>
 ));
 SearchInput.displayName = 'SearchInput';
+
+
+// ---------------------------------------------------------------------------
+// Grouped number inputs
+// ---------------------------------------------------------------------------
+
+/*
+ * These are CONTROLLED: `value` is the raw machine number as a string
+ * (e.g. "10000000.5") and `onChange` is called with that raw string. The field
+ * displays it with '.' grouping ("10.000.000,5"). Pair them with React Hook
+ * Form's <Controller>, so the form state is always the raw number and no
+ * financial code sees display text.
+ *
+ * `type="text"` with `inputMode="decimal"` is deliberate: a native number input
+ * cannot render thousand separators, and would strip them as invalid.
+ */
+
+interface FormattedNumberFieldProps {
+  value: string;
+  onChange: (rawValue: string) => void;
+  onBlur?: () => void;
+  label: string;
+  error?: string;
+  hint?: string;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+  name?: string;
+  prefix?: string;
+  icon?: ReactNode;
+}
+
+export const FormattedNumberInput = forwardRef<HTMLInputElement, FormattedNumberFieldProps>(
+  ({ value, onChange, onBlur, label, error, hint, placeholder, required, disabled, name, prefix, icon }, ref) => {
+    const id = useId();
+    return (
+      <FieldWrapper id={id} label={label} error={error} hint={hint} required={required}>
+        <div className="relative">
+          {icon && (
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400">
+              {icon}
+            </span>
+          )}
+          {prefix && (
+            <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-ink-500">
+              {prefix}
+            </span>
+          )}
+          <input
+            ref={ref}
+            id={id}
+            name={name}
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            disabled={disabled}
+            required={required}
+            placeholder={placeholder}
+            value={formatGroupedNumber(value)}
+            onChange={(event) => onChange(parseGroupedNumber(event.target.value))}
+            onBlur={onBlur}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+            className={clsx(
+              FIELD_BASE,
+              'money h-11 px-3.5',
+              (prefix || icon) && 'pl-10',
+              borderFor(Boolean(error)),
+            )}
+          />
+        </div>
+      </FieldWrapper>
+    );
+  },
+);
+FormattedNumberInput.displayName = 'FormattedNumberInput';
+
+/** Oversized, grouped money field — the formatted twin of `AmountInput`. */
+export const FormattedAmountInput = forwardRef<
+  HTMLInputElement,
+  FormattedNumberFieldProps & { currencyLabel: string }
+>(({ value, onChange, onBlur, label, error, hint, currencyLabel, placeholder, required, disabled, name }, ref) => {
+  const id = useId();
+  return (
+    <FieldWrapper id={id} label={label} error={error} hint={hint} required={required}>
+      <div
+        className={clsx(
+          'flex items-center gap-2 rounded-2xl border px-4 py-3 transition-all duration-200',
+          error
+            ? 'border-expense-300 bg-expense-50/40 focus-within:ring-4 focus-within:ring-expense-100'
+            : 'border-ink-200 bg-ink-50/60 focus-within:border-accent-500 focus-within:bg-surface focus-within:ring-4 focus-within:ring-accent-100',
+        )}
+      >
+        <span className="font-display text-lg font-semibold text-ink-400">{currencyLabel}</span>
+        <input
+          ref={ref}
+          id={id}
+          name={name}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          disabled={disabled}
+          required={required}
+          placeholder={placeholder}
+          value={formatGroupedNumber(value)}
+          onChange={(event) => onChange(parseGroupedNumber(event.target.value))}
+          onBlur={onBlur}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+          className="money w-full border-0 bg-transparent p-0 text-2xl font-bold text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-0"
+        />
+      </div>
+    </FieldWrapper>
+  );
+});
+FormattedAmountInput.displayName = 'FormattedAmountInput';

@@ -42,8 +42,60 @@ model User {
   categories   Category[]
   transactions Transaction[]
   budgets      Budget[]
+  holdings     Holding[]
 
   @@map("users")
+}
+
+model Holding {
+  id     String @id @default(cuid())
+  userId String
+
+  // Yahoo Finance symbol, uppercased. Indonesian equities carry the ".JK"
+  // (Jakarta) suffix, e.g. "BBCA.JK". Stored as given so the price service can
+  // query the vendor directly without re-deriving it.
+  symbol String
+  // Human-friendly label captured at add time (e.g. "Bank Central Asia").
+  name   String
+
+  // Number of shares (lots × 100 is left to the user). Decimal so fractional
+  // holdings and precise cost basis never accumulate float error, exactly like
+  // transaction amounts.
+  shares      Decimal
+  // Average buy price per share, in the holding's own currency.
+  avgBuyPrice Decimal
+  // Currency the instrument trades in (IDR for .JK). Kept per-holding so a
+  // future multi-market portfolio does not need a schema change.
+  currency    String @default("IDR")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One row per instrument per user; adding more of the same symbol updates the
+  // existing position rather than creating a duplicate.
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@map("holdings")
+}
+
+model PriceCache {
+  // The vendor symbol is the natural key — a quote is global, not per-user, so
+  // every user's holding of "BBCA.JK" shares one cached price.
+  symbol String @id
+
+  price             Decimal
+  currency          String   @default("IDR")
+  // Previous close, used to derive the day's change without a second request.
+  previousClose     Decimal?
+  // Short display name returned by the vendor, cached for the UI.
+  shortName         String?
+  // When this quote was fetched. The price service treats a row older than its
+  // TTL as stale and refreshes it, so we never hammer the vendor.
+  fetchedAt         DateTime @default(now())
+
+  @@map("price_cache")
 }
 
 model Category {

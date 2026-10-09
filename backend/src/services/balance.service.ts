@@ -1,7 +1,15 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import type { DateRange } from '../utils/date';
-import { type Money, ZERO, money } from '../utils/money';
+import {
+  MS_PER_DAY,
+  countDaysInclusive,
+  resolveChartRange,
+  startOfUtcDay,
+  toDayKey,
+  type ChartRange,
+  type DateRange,
+} from '../utils/date';
+import { type Money, ZERO, money, toNumber } from '../utils/money';
 
 /**
  * Balance & totals — the authoritative financial arithmetic for the whole app.
@@ -71,4 +79,124 @@ export const getCategoryExpense = async (
     _sum: { amount: true },
   });
   return money(result._sum.amount ?? ZERO);
+};
+
+export interface BalancePoint {
+  /** `YYYY-MM-DD`. */
+  date: string;
+  balance: number;
+}
+
+/**
+ * Running balance per day across a date range (for the dashboard's balance line).
+ *
+ * The series is still *derived*, consistent with the "balance is never stored"
+ * rule: we compute the opening balance as `initialBalance + Σ(everything before
+ * the window)`, then walk the window day by day applying each day's net. Every
+ * day in the range gets a point — including days with no activity, which simply
+ * carry the previous balance forward — so the line never has misleading gaps.
+ */
+export const getBalanceHistory = async (
+  userId: string,
+  range: DateRange,
+): Promise<BalancePoint[]> => {
+  const [user, priorGrouped, windowRows] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { initialBalance: true } }),
+    // Everything strictly before the window, to seed the opening balance.
+    prisma.transaction.groupBy({
+      by: ['type'],
+      where: { userId, transactionDate: { lt: range.from } },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.findMany({
+      where: { userId, transactionDate: { gte: range.from, lte: range.to } },
+      select: { type: true, amount: true, transactionDate: true },
+      orderBy: { transactionDate: 'asc' },
+    }),
+  ]);
+
+  let opening = user ? money(user.initialBalance) : ZERO;
+  for (const row of priorGrouped) {
+    const amount = money(row._sum.amount ?? ZERO);
+    opening = row.type === 'INCOME' ? opening.plus(amount) : opening.minus(amount);
+  }
+
+  // Net movement per day inside the window.
+  const dailyNet = new Map<string, Money>();
+  for (const row of windowRows) {
+    const key = toDayKey(row.transactionDate);
+    const current = dailyNet.get(key) ?? ZERO;
+    const amount = money(row.amount);
+    dailyNet.set(key, row.type === 'INCOME' ? current.plus(amount) : current.minus(amount));
+  }
+
+  // Walk every day in the range so the line is continuous.
+  const points: BalancePoint[] = [];
+  let running = opening;
+  const totalDays = countDaysInclusive(range.from, range.to);
+  const cursor = startOfUtcDay(range.from);
+
+  for (let dayIndex = 0; dayIndex < totalDays; dayIndex += 1) {
+    const day = new Date(cursor.getTime() + dayIndex * MS_PER_DAY);
+    const key = toDayKey(day);
+    const net = dailyNet.get(key);
+    if (net) running = running.plus(net);
+    points.push({ date: key, balance: toNumber(running) });
+  }
+
+  return points;
+};
+
+export interface BalanceHistoryResponse {
+  range: ChartRange;
+  from: string;
+  to: string;
+  points: BalancePoint[];
+}
+
+/**
+ * Balance history for a named chart range. For `ALL` the window is anchored to
+ * the user's earliest transaction (falling back to account creation), so the
+ * line starts where the data actually does rather than at an arbitrary epoch.
+ * A hard day cap keeps very long `ALL` windows from producing an unbounded
+ * series — a daily point for ~5+ years is still well within chart budget.
+ */
+const MAX_HISTORY_DAYS = 1900;
+
+export const getBalanceHistoryForRange = async (
+  userId: string,
+  range: ChartRange,
+  now = new Date(),
+): Promise<BalanceHistoryResponse> => {
+  let allFrom: Date | undefined;
+  if (range === 'ALL') {
+    const earliest = await prisma.transaction.findFirst({
+      where: { userId },
+      orderBy: { transactionDate: 'asc' },
+      select: { transactionDate: true },
+    });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { createdAt: true },
+    });
+    allFrom = earliest?.transactionDate ?? user?.createdAt ?? now;
+  }
+
+  let window = resolveChartRange(range, now, allFrom);
+
+  // Clamp an over-long window to the cap, keeping the most recent days.
+  if (countDaysInclusive(window.from, window.to) > MAX_HISTORY_DAYS) {
+    window = {
+      from: new Date(startOfUtcDay(window.to).getTime() - (MAX_HISTORY_DAYS - 1) * MS_PER_DAY),
+      to: window.to,
+    };
+  }
+
+  const points = await getBalanceHistory(userId, window);
+  return {
+    range,
+    from: window.from.toISOString(),
+    to: window.to.toISOString(),
+    points,
+  };
 };

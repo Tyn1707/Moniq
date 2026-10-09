@@ -87,6 +87,12 @@ export interface DashboardData {
     savings: number;
     savingsRate: number | null;
   };
+  netWorth: {
+    total: number;
+    cash: number;
+    investments: number;
+    hasInvestments: boolean;
+  };
   currentMonth: {
     from: string;
     to: string;
@@ -188,4 +194,110 @@ export interface BudgetPayload {
   amount: number;
   periodStart?: string;
   periodEnd?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Portfolio
+// ---------------------------------------------------------------------------
+
+export interface Holding {
+  id: string;
+  symbol: string;
+  name: string;
+  shares: number;
+  avgBuyPrice: number;
+  currency: Currency;
+  costBasis: number;
+  currentPrice: number | null;
+  marketValue: number | null;
+  profitLoss: number | null;
+  profitLossPercentage: number | null;
+  dayChange: number | null;
+  dayChangePercentage: number | null;
+  allocation: number;
+  priceStale: boolean;
+  priceAsOf: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PortfolioTotals {
+  costBasis: number;
+  marketValue: number;
+  profitLoss: number;
+  profitLossPercentage: number | null;
+  dayChange: number;
+  dayChangePercentage: number | null;
+}
+
+export interface PortfolioData {
+  holdings: Holding[];
+  totals: PortfolioTotals;
+  currency: Currency;
+  pricesAsOf: string | null;
+  pricesStale: boolean;
+  holdingCount: number;
+}
+
+export interface SymbolSearchResult {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  type: string | null;
+}
+
+export interface Quote {
+  symbol: string;
+  price: number;
+  currency: string;
+  previousClose: number | null;
+  shortName: string | null;
+  asOf: string;
+  stale: boolean;
+}
+
+export interface HoldingPayload {
+  symbol: string;
+  name?: string;
+  shares: number;
+  avgBuyPrice: number;
+  currency?: Currency;
+}
+
+export interface UpdateHoldingPayload {
+  name?: string;
+  shares?: number;
+  avgBuyPrice?: number;
+  currency?: Currency;
+}
+
+// ---------------------------------------------------------------------------
+// Interactive history charts
+// ---------------------------------------------------------------------------
+
+export type ChartRange = '1W' | '1M' | '3M' | '1Y' | 'ALL';
+
+export interface BalancePoint {
+  date: string;
+  balance: number;
+}
+
+export interface BalanceHistoryData {
+  range: ChartRange;
+  from: string;
+  to: string;
+  points: BalancePoint[];
+}
+
+export interface PricePoint {
+  date: string;
+  close: number;
+}
+
+export interface PriceHistoryData {
+  symbol: string;
+  currency: Currency;
+  shortName: string | null;
+  range: ChartRange;
+  points: PricePoint[];
 }

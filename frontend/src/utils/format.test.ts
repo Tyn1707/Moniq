@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   formatCurrency,
+  formatGroupedNumber,
   formatMonth,
   formatPercentage,
   formatRelativeDate,
   formatShortDate,
   formatTransactionAmount,
+  parseGroupedNumber,
   toDateInputValue,
 } from './format';
 
@@ -84,5 +86,34 @@ describe('date formatting', () => {
 
   it('produces a YYYY-MM-DD value for date inputs', () => {
     expect(toDateInputValue(new Date('2026-09-24T18:30:00.000Z'))).toBe('2026-09-24');
+  });
+});
+
+
+describe('grouped number input helpers', () => {
+  it('groups integers with dots as they grow past three digits', () => {
+    expect(formatGroupedNumber('100000')).toBe('100.000');
+    expect(formatGroupedNumber('10000000')).toBe('10.000.000');
+    expect(formatGroupedNumber('999')).toBe('999');
+  });
+
+  it('shows the decimal mark as a comma while preserving in-progress input', () => {
+    expect(formatGroupedNumber('1000.')).toBe('1.000,');
+    expect(formatGroupedNumber('1000.5')).toBe('1.000,5');
+  });
+
+  it('passes through empty and lone-minus states untouched', () => {
+    expect(formatGroupedNumber('')).toBe('');
+    expect(formatGroupedNumber('-')).toBe('-');
+  });
+
+  it('parses a grouped display back to a raw machine number', () => {
+    expect(parseGroupedNumber('10.000.000')).toBe('10000000');
+    expect(parseGroupedNumber('1.000,5')).toBe('1000.5');
+    expect(parseGroupedNumber('Rp 2.500.000')).toBe('2500000');
+  });
+
+  it('round-trips a raw value through format and parse', () => {
+    expect(parseGroupedNumber(formatGroupedNumber('250000.75'))).toBe('250000.75');
   });
 });

@@ -13,9 +13,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { PieChart as PieIcon, BarChart3, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
-import type { CategoryBreakdownItem, Currency, DailyPoint, MonthlyTrendPoint } from '../../types';
+import type { CategoryBreakdownItem, ChartRange, Currency, DailyPoint, MonthlyTrendPoint } from '../../types';
 import { formatCompactNumber, formatCurrency, formatShortDate } from '../../utils/format';
 import { EmptyState } from '../ui/States';
 import { useTheme } from '../../hooks/useTheme';
@@ -404,6 +404,203 @@ export const NetFlowSparkline = ({ data }: { data: MonthlyTrendPoint[] }) => {
           />
         </AreaChart>
       </ResponsiveContainer>
+    </div>
+  );
+};
+
+
+// ---------------------------------------------------------------------------
+// Interactive line chart (balance history, stock price)
+// ---------------------------------------------------------------------------
+
+const CHART_RANGES: ChartRange[] = ['1W', '1M', '3M', '1Y', 'ALL'];
+
+const RANGE_LABELS: Record<ChartRange, string> = {
+  '1W': '1W',
+  '1M': '1M',
+  '3M': '3M',
+  '1Y': '1Y',
+  ALL: 'All',
+};
+
+/** Range selector — a segmented row of buttons styled like the app's controls. */
+export const RangeSelector = ({
+  value,
+  onChange,
+  ranges = CHART_RANGES,
+}: {
+  value: ChartRange;
+  onChange: (range: ChartRange) => void;
+  ranges?: ChartRange[];
+}) => (
+  <div
+    role="radiogroup"
+    aria-label="Time range"
+    className="inline-flex items-center gap-1 rounded-xl border border-ink-200 bg-ink-100/70 p-1"
+  >
+    {ranges.map((range) => {
+      const isActive = range === value;
+      return (
+        <button
+          key={range}
+          type="button"
+          role="radio"
+          aria-checked={isActive}
+          onClick={() => onChange(range)}
+          className={clsx(
+            'press h-7 rounded-lg px-2.5 text-[0.75rem] font-bold transition-all duration-200',
+            isActive ? 'bg-surface text-ink-900 shadow-subtle' : 'text-ink-500 hover:text-ink-800',
+          )}
+        >
+          {RANGE_LABELS[range]}
+        </button>
+      );
+    })}
+  </div>
+);
+
+/** Handle both `YYYY-MM-DD` keys and intraday ISO instants on the X axis. */
+const toIso = (value: string): string =>
+  value.length === 10 ? `${value}T00:00:00.000Z` : value;
+
+const InteractiveTooltip = ({
+  active,
+  payload,
+  label,
+  currency,
+  seriesLabel,
+  intraday,
+}: {
+  active?: boolean;
+  payload?: { value?: number }[];
+  label?: string;
+  currency: Currency;
+  seriesLabel: string;
+  intraday: boolean;
+}) => {
+  if (!active || !payload?.length) return null;
+  const value = payload[0]?.value ?? 0;
+  const iso = toIso(String(label));
+  const when = new Date(iso);
+  const dateText = intraday
+    ? `${formatShortDate(iso)}, ${when.getUTCHours().toString().padStart(2, '0')}:${when
+        .getUTCMinutes()
+        .toString()
+        .padStart(2, '0')}`
+    : formatShortDate(iso);
+
+  return (
+    <div className="min-w-[9rem] rounded-xl border border-ink-200/80 bg-surface/95 px-3 py-2.5 shadow-float backdrop-blur">
+      <p className="mb-1 text-[0.6875rem] font-bold uppercase tracking-wide text-ink-400">{dateText}</p>
+      <p className="flex items-center gap-2 text-[0.8125rem]">
+        <span className="text-ink-600">{seriesLabel}</span>
+        <span className="money ml-auto font-bold text-ink-900">{formatCurrency(value, currency)}</span>
+      </p>
+    </div>
+  );
+};
+
+/**
+ * A single-series area/line with a selectable time window and a hover crosshair.
+ *
+ * The highlighting the user asked for is the range row + the crosshair: moving
+ * the pointer snaps a dashed vertical guide and an active dot to the nearest
+ * observation and reads out its exact value, so the chart is something you can
+ * interrogate point by point rather than just glance at. The fill is tinted by
+ * trend — emerald when the series ends above where it began, rose when below —
+ * so the direction of travel is legible before reading a single number.
+ */
+export const InteractiveLineChart = ({
+  data,
+  currency,
+  range,
+  onRangeChange,
+  seriesLabel,
+  intraday = false,
+  height = 'h-72',
+  isLoading = false,
+}: {
+  data: { date: string; value: number }[];
+  currency: Currency;
+  range: ChartRange;
+  onRangeChange: (range: ChartRange) => void;
+  seriesLabel: string;
+  intraday?: boolean;
+  height?: string;
+  isLoading?: boolean;
+}) => {
+  const chrome = useChartChrome();
+
+  const first = data[0]?.value ?? 0;
+  const last = data[data.length - 1]?.value ?? 0;
+  const positive = last >= first;
+  const stroke = positive ? INCOME : EXPENSE;
+  const gradientId = `lineFill-${positive ? 'up' : 'down'}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <RangeSelector value={range} onChange={onRangeChange} />
+      </div>
+
+      {isLoading ? (
+        <div className={clsx('w-full animate-pulse rounded-2xl bg-ink-100', height)} />
+      ) : data.length < 2 ? (
+        <EmptyState
+          icon={<TrendingUp className="h-6 w-6" aria-hidden="true" />}
+          title="Not enough data for this range"
+          message="Try a longer range, or check back once there is more history to plot."
+          compact
+        />
+      ) : (
+        <div className={clsx('w-full', height)}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 4, right: 6, bottom: 0, left: -8 }}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={stroke} stopOpacity={0.3} />
+                  <stop offset="100%" stopColor={stroke} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid vertical={false} stroke={chrome.grid} />
+              <XAxis
+                dataKey="date"
+                {...axisProps}
+                dy={4}
+                minTickGap={36}
+                tickFormatter={(value: string) => formatShortDate(toIso(value))}
+              />
+              <YAxis
+                {...axisProps}
+                width={56}
+                domain={['auto', 'auto']}
+                tickFormatter={formatCompactNumber}
+              />
+              <Tooltip
+                content={
+                  <InteractiveTooltip
+                    currency={currency}
+                    seriesLabel={seriesLabel}
+                    intraday={intraday}
+                  />
+                }
+                cursor={{ stroke: chrome.cursorStroke, strokeWidth: 1.5, strokeDasharray: '4 4' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="value"
+                name={seriesLabel}
+                stroke={stroke}
+                strokeWidth={2.5}
+                fill={`url(#${gradientId})`}
+                activeDot={{ r: 5, strokeWidth: 2, stroke: chrome.dotStroke }}
+                dot={false}
+                isAnimationActive
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   );
 };

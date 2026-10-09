@@ -10,6 +10,7 @@ import {
 } from '../utils/date';
 import { ZERO, type Money, money, percentageOf, toNumber } from '../utils/money';
 import { getTotals } from './balance.service';
+import { getInvestmentsValue } from './portfolio.service';
 import { toTransactionDto } from './transaction.service';
 
 const TREND_MONTHS = 6;
@@ -40,6 +41,19 @@ export interface DashboardResponse {
     totalExpense: number;
     savings: number;
     savingsRate: number | null;
+  };
+  /**
+   * Net worth = cash balance + live investments value. Kept distinct from the
+   * cash `summary.balance`, which stays exactly reproducible from the ledger —
+   * investments are a volatile external estimate and must never silently alter
+   * the cash figure.
+   */
+  netWorth: {
+    total: number;
+    cash: number;
+    investments: number;
+    /** True when the user holds no positions, so net worth is just cash. */
+    hasInvestments: boolean;
   };
   currentMonth: {
     from: string;
@@ -178,7 +192,7 @@ export const getDashboard = async (userId: string, now = new Date()): Promise<Da
 
   const monthRange: DateRange = { from: startOfUtcMonth(now), to: endOfUtcMonth(now) };
 
-  const [allTime, thisMonth, expenseByCategory, monthlyTrend, recentRows, transactionCount] =
+  const [allTime, thisMonth, expenseByCategory, monthlyTrend, recentRows, transactionCount, investmentsValue] =
     await Promise.all([
       getTotals(userId),
       getTotals(userId, monthRange),
@@ -191,11 +205,13 @@ export const getDashboard = async (userId: string, now = new Date()): Promise<Da
         include: { category: { select: { id: true, name: true } } },
       }),
       prisma.transaction.count({ where: { userId } }),
+      getInvestmentsValue(userId, now),
     ]);
 
   const savings = allTime.income.minus(allTime.expense);
   const balance = money(user.initialBalance).plus(savings);
   const monthNet = thisMonth.income.minus(thisMonth.expense);
+  const netWorthTotal = balance.plus(investmentsValue);
 
   return {
     currency: user.currency as Currency,
@@ -205,6 +221,12 @@ export const getDashboard = async (userId: string, now = new Date()): Promise<Da
       totalExpense: toNumber(allTime.expense),
       savings: toNumber(savings),
       savingsRate: percentageOf(savings, allTime.income),
+    },
+    netWorth: {
+      total: toNumber(netWorthTotal),
+      cash: toNumber(balance),
+      investments: toNumber(investmentsValue),
+      hasInvestments: !investmentsValue.isZero(),
     },
     currentMonth: {
       from: monthRange.from.toISOString(),

@@ -62,6 +62,51 @@ export const formatCompactNumber = (value: number): string =>
   new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 
 /**
+ * Grouped-number input helpers.
+ *
+ * A number input cannot show thousand separators, so the grouped fields use a
+ * text input and format as the user types. Grouping uses `.` and the decimal
+ * mark is `,` — the Indonesian convention (e.g. `10.000.000,5`) — but the value
+ * handed back to the form and the API is always the raw machine number
+ * (`10000000.5`), so no financial code ever has to parse display text.
+ */
+
+/** Strip grouping from a displayed value, leaving a raw numeric string. */
+export const parseGroupedNumber = (display: string): string => {
+  if (!display) return '';
+  // Keep digits, the decimal comma, and a leading minus; drop the '.' grouping.
+  const cleaned = display
+    .replace(/[^\d,-]/g, '')
+    .replace(/(?!^)-/g, '') // only a leading minus is meaningful
+    .replace(',', '.'); // normalise decimal mark to '.'
+  return cleaned;
+};
+
+/**
+ * Format a raw numeric string for display with `.` grouping. Preserves a
+ * trailing decimal mark and in-progress fractional digits so typing "1000," or
+ * "1000,5" is not fought by the formatter.
+ */
+export const formatGroupedNumber = (raw: string): string => {
+  if (raw === '' || raw === '-') return raw;
+
+  const negative = raw.startsWith('-');
+  const unsigned = negative ? raw.slice(1) : raw;
+
+  const [integerPart, ...rest] = unsigned.split('.');
+  const fraction = rest.join('');
+
+  const digits = (integerPart ?? '').replace(/\D/g, '');
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  // A '.' in the raw string marks the decimal position; show it as ','.
+  const hasDecimal = unsigned.includes('.');
+  const display = hasDecimal ? `${grouped || '0'},${fraction}` : grouped;
+
+  return negative ? `-${display}` : display;
+};
+
+/**
  * Month names are spelled out rather than taken from `Intl`. ICU data differs
  * between runtimes — `en-GB` abbreviates September as "Sept" on some Node
  * builds and "Sep" on others — and a ledger's date column should not change

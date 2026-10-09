@@ -91,3 +91,34 @@ export const previousRange = (range: DateRange): DateRange => {
   const to = new Date(range.from.getTime() - 1);
   return { from: new Date(range.from.getTime() - spanMs - 1), to };
 };
+
+/** Selectable windows for the interactive line charts. */
+export const CHART_RANGES = ['1W', '1M', '3M', '1Y', 'ALL'] as const;
+export type ChartRange = (typeof CHART_RANGES)[number];
+
+/**
+ * Resolve a chart range into an inclusive date window ending today. `ALL` is
+ * open-started; callers that need a concrete lower bound (e.g. the balance
+ * history, which must seed from the account's first day) pass an `allFrom`.
+ */
+export const resolveChartRange = (
+  range: ChartRange,
+  now: Date = new Date(),
+  allFrom?: Date,
+): DateRange => {
+  const to = endOfUtcDay(now);
+  const todayStart = startOfUtcDay(now);
+
+  switch (range) {
+    case '1W':
+      return { from: new Date(todayStart.getTime() - 6 * MS_PER_DAY), to };
+    case '1M':
+      return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, now.getUTCDate())), to };
+    case '3M':
+      return { from: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 3, now.getUTCDate())), to };
+    case '1Y':
+      return { from: new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate())), to };
+    case 'ALL':
+      return { from: allFrom ? startOfUtcDay(allFrom) : new Date(Date.UTC(2000, 0, 1)), to };
+  }
+};

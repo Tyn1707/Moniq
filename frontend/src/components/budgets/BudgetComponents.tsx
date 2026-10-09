@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Pencil, PiggyBank, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
 import { Button } from '../ui/Button';
-import { AmountInput, Select } from '../ui/Field';
+import { FormattedAmountInput, Select } from '../ui/Field';
 import { Modal } from '../ui/Modal';
 import { BUDGET_STATUS_LABEL, BUDGET_STATUS_TONE, Badge, RingProgress } from '../ui';
 import { AnimatedPercentage } from '../ui/Motion';
@@ -150,6 +150,7 @@ export const BudgetFormModal = ({
     handleSubmit,
     reset,
     setError,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -245,16 +246,22 @@ export const BudgetFormModal = ({
           </p>
         )}
 
-        <AmountInput
-          label="Monthly budget amount"
-          currencyLabel={user?.currency ?? 'IDR'}
-          type="number"
-          step="0.01"
-          min="0"
-          placeholder="0"
-          required
-          error={errors.amount?.message}
-          {...register('amount')}
+        <Controller
+          control={control}
+          name="amount"
+          render={({ field }) => (
+            <FormattedAmountInput
+              label="Monthly budget amount"
+              currencyLabel={user?.currency ?? 'IDR'}
+              placeholder="0"
+              required
+              name={field.name}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.amount?.message}
+            />
+          )}
         />
       </form>
     </Modal>
