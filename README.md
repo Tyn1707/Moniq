@@ -5,8 +5,9 @@ A personal finance tracker for students and young professionals.
 > **Know where your money goes.**
 
 Record income and expenses, group them by category, watch your balance, set
-monthly budgets, and get insights derived from your own transactions.
-Moniq only ever *records and analyses* money — it never moves it.
+monthly budgets, track a stock portfolio with live market prices, and get
+insights derived from your own data. Moniq only ever *records and analyses*
+money — it never moves it.
 
 ---
 
@@ -16,9 +17,11 @@ Moniq only ever *records and analyses* money — it never moves it.
 | --------- | --------------------------------------------------------- |
 | Frontend  | React 18 + TypeScript, Vite, Tailwind CSS, Recharts        |
 | State     | TanStack Query (server state), React Hook Form + Zod       |
+| Theming   | Light/dark mode with a persisted, system-aware toggle      |
 | Backend   | Node.js + Express + TypeScript                             |
 | ORM       | Prisma                                                     |
 | Database  | SQLite for local dev · PostgreSQL-ready (see below)        |
+| Market data | Yahoo Finance (unofficial), cached server-side           |
 | Auth      | JWT in an httpOnly cookie, bcrypt password hashing         |
 | Tests     | Vitest (+ Supertest for the API, Testing Library for UI)   |
 
@@ -89,7 +92,7 @@ single origin so the `SameSite=Strict` auth cookie works normally.
 
 ```bash
 cd backend  && npm test    # 119 tests — API, balance, budgets, analytics, authorization
-cd frontend && npm test    # 26 tests  — formatting and component behaviour
+cd frontend && npm test    # 61 tests  — formatting, components, auth, sidebar, theme
 ```
 
 ---
@@ -114,15 +117,17 @@ backend/
 
 frontend/src/
 ├── components/
-│   ├── ui/                    # Button, Field, Modal, Skeleton, States…
+│   ├── ui/                    # Button, Field, Modal, Skeleton, ThemeToggle…
 │   ├── charts/                # Recharts wrappers
 │   ├── layout/                # sidebar, bottom nav, topbar
 │   ├── transactions/          # list, filters, form
 │   ├── budgets/               # budget card + form
-│   └── dashboard/             # summary cards, insights
-├── pages/                     # one file per route
+│   ├── portfolio/             # holding list, add/edit, price chart
+│   ├── dashboard/             # summary cards, insights
+│   └── auth/                  # auth form tabs
+├── pages/                     # one file per route (incl. Portfolio + StockDetail)
 ├── layouts/                   # AppLayout (guarded) + AuthLayout
-├── hooks/                     # auth, toasts, data access
+├── hooks/                     # auth, toasts, theme, motion, data access
 ├── services/                  # API client + typed endpoints
 ├── types/                     # API contract types
 └── utils/format.ts            # money/date/percentage presentation
@@ -158,6 +163,16 @@ someone else's record exists.
 **Insights are evidence-based.** Each rule in `insight.service.ts` is a pure
 function of aggregates computed from the user's own rows, and is skipped
 entirely when its input is missing. There is no placeholder or sample text.
+
+**Market data is fetched and cached server-side, never in the browser.** Quotes
+come from Yahoo Finance's unofficial chart endpoint through `price.service.ts`.
+A quote is global rather than per-user, so prices are cached in a `PriceCache`
+table (shared across users and surviving restarts) and refreshed only when the
+cached value is older than a short TTL — this keeps the vendor from being
+hammered and keeps financial work off the client. Every upstream call is
+defensive: on a timeout or vendor error the service falls back to the last known
+price (flagged `stale`) rather than blanking a user's portfolio. Share counts,
+cost basis and market value use the same `Decimal` arithmetic as transactions.
 
 ---
 
@@ -195,12 +210,18 @@ and health requires a valid session.
 | `POST` | `/auth/onboarding` | Save starting balance, currency, categories |
 | `POST` | `/auth/onboarding/skip` | Skip onboarding |
 | `GET` | `/dashboard` | Summary, charts and recent activity in one call |
+| `GET` | `/balance-history` | Balance over a selectable range (`?range=1W…ALL`) |
 | `GET` `POST` | `/transactions` | List (search/filter/sort/paginate) · create |
 | `GET` `PUT` `DELETE` | `/transactions/:id` | Read · update · delete |
 | `GET` `POST` | `/categories` | List · create |
 | `PUT` `DELETE` | `/categories/:id` | Rename · delete |
 | `GET` `POST` | `/budgets` | List with spend · create |
 | `GET` `PUT` `DELETE` | `/budgets/:id` | Read · update · delete |
+| `GET` `POST` | `/portfolio` | List holdings with live value · add a holding |
+| `GET` `PUT` `DELETE` | `/portfolio/:id` | Read · update · delete a holding |
+| `GET` | `/portfolio/search` | Search market symbols (`?q=`) |
+| `GET` | `/portfolio/quote/:symbol` | Live cached quote for one symbol |
+| `GET` | `/portfolio/history/:symbol` | Price history over a range (`?range=1W…ALL`) |
 | `GET` | `/analytics` | Period totals, trends and insights |
 | `GET` `PUT` | `/profile` | Read · update |
 | `PUT` | `/profile/password` | Change password |
